@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>כלי קואורדינטות PDF</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #1a1a2e;
+      color: white;
+      min-height: 100vh;
+    }
+    .header {
+      background: #16213e;
+      padding: 20px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header h1 { color: #f97316; margin-bottom: 10px; }
+    .controls {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .controls button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.3s;
+    }
+    .controls button.active {
+      background: #f97316;
+      color: white;
+    }
+    .controls button:not(.active) {
+      background: #0f3460;
+      color: white;
+    }
+    .controls button:hover { transform: scale(1.05); }
+    .coords-display {
+      background: #0f3460;
+      padding: 15px 30px;
+      border-radius: 8px;
+      font-size: 18px;
+      font-family: monospace;
+    }
+    .container {
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+    .image-wrapper {
+      position: relative;
+      display: inline-block;
+      cursor: crosshair;
+    }
+    .image-wrapper img {
+      max-width: 90vw;
+      max-height: 80vh;
+      border: 3px solid #f97316;
+      border-radius: 8px;
+    }
+    .marker {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: #f97316;
+      border: 2px solid white;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 10;
+    }
+    .marker::after {
+      content: attr(data-label);
+      position: absolute;
+      top: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #f97316;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .saved-coords {
+      background: #16213e;
+      padding: 20px;
+      margin: 20px;
+      border-radius: 8px;
+    }
+    .saved-coords h3 { color: #f97316; margin-bottom: 15px; }
+    .saved-coords table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .saved-coords th, .saved-coords td {
+      padding: 10px;
+      text-align: right;
+      border-bottom: 1px solid #0f3460;
+    }
+    .saved-coords th { color: #f97316; }
+    .saved-coords input {
+      background: #0f3460;
+      border: 1px solid #f97316;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      width: 100%;
+    }
+    .saved-coords button {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .export-btn {
+      background: #27ae60 !important;
+      margin-top: 15px;
+      padding: 10px 20px !important;
+    }
+    .grid-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      opacity: 0.3;
+    }
+    .crosshair {
+      position: absolute;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .crosshair-h {
+      width: 100%;
+      height: 1px;
+      background: #f97316;
+    }
+    .crosshair-v {
+      width: 1px;
+      height: 100%;
+      background: #f97316;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>כלי קואורדינטות PDF</h1>
+    <div class="controls">
+      <button id="page1-btn" class="active" onclick="showPage(1)">עמוד 1</button>
+      <button id="page2-btn" onclick="showPage(2)">עמוד 2</button>
+      <div class="coords-display">
+        X: <span id="coord-x">0</span> | Y: <span id="coord-y">0</span>
+      </div>
+      <button onclick="toggleGrid()">הצג/הסתר רשת</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="image-wrapper" id="image-wrapper">
+      <img id="template-img" src="/contr/page-0001.jpg" alt="Template" onclick="addMarker(event)">
+      <svg class="grid-overlay" id="grid-overlay" style="display: none;">
+        <!-- Grid lines will be added dynamically -->
+      </svg>
+      <div class="crosshair crosshair-h" id="crosshair-h" style="display: none;"></div>
+      <div class="crosshair crosshair-v" id="crosshair-v" style="display: none;"></div>
+    </div>
+  </div>
+
+  <div class="saved-coords">
+    <h3>נקודות שנשמרו - עמוד <span id="current-page-label">1</span></h3>
+    <table>
+      <thead>
+        <tr>
+          <th>שם השדה</th>
+          <th>X</th>
+          <th>Y</th>
+          <th>פעולות</th>
+        </tr>
+      </thead>
+      <tbody id="coords-table">
+      </tbody>
+    </table>
+    <button class="export-btn" onclick="exportCoords()">ייצא JSON</button>
+    <button class="export-btn" onclick="copyCoords()" style="margin-right: 10px;">העתק ללוח</button>
+  </div>
+
+  <script>
+    let currentPage = 1;
+    let showGrid = false;
+    let markers = { 1: [], 2: [] };
+    let markerCount = { 1: 0, 2: 0 };
+
+    const img = document.getElementById('template-img');
+    const wrapper = document.getElementById('image-wrapper');
+    const coordX = document.getElementById('coord-x');
+    const coordY = document.getElementById('coord-y');
+    const crosshairH = document.getElementById('crosshair-h');
+    const crosshairV = document.getElementById('crosshair-v');
+
+    // Load saved markers from localStorage
+    const saved = localStorage.getItem('pdfCoordinates');
+    if (saved) {
+      markers = JSON.parse(saved);
+      markerCount[1] = markers[1].length;
+      markerCount[2] = markers[2].length;
+    }
+
+    function showPage(page) {
+      currentPage = page;
+      img.src = `/contr/page-000${page}.jpg`;
+      document.getElementById('page1-btn').classList.toggle('active', page === 1);
+      document.getElementById('page2-btn').classList.toggle('active', page === 2);
+      document.getElementById('current-page-label').textContent = page;
+
+      // Clear visual markers
+      document.querySelectorAll('.marker').forEach(m => m.remove());
+
+      // Redraw markers for current page
+      setTimeout(() => {
+        markers[currentPage].forEach((m, i) => {
+          createMarkerElement(m.x, m.y, m.label, i);
+        });
+      }, 100);
+
+      updateTable();
+    }
+
+    wrapper.addEventListener('mousemove', (e) => {
+      const rect = img.getBoundingClientRect();
+      const x = Math.round(e.clientX - rect.left);
+      const y = Math.round(e.clientY - rect.top);
+
+      coordX.textContent = x;
+      coordY.textContent = y;
+
+      crosshairH.style.display = 'block';
+      crosshairV.style.display = 'block';
+      crosshairH.style.top = (e.clientY - rect.top) + 'px';
+      crosshairV.style.left = (e.clientX - rect.left) + 'px';
+    });
+
+    wrapper.addEventListener('mouseleave', () => {
+      crosshairH.style.display = 'none';
+      crosshairV.style.display = 'none';
+    });
+
+    function addMarker(e) {
+      const rect = img.getBoundingClientRect();
+      const x = Math.round(e.clientX - rect.left);
+      const y = Math.round(e.clientY - rect.top);
+
+      const label = prompt('שם השדה:', `שדה ${markerCount[currentPage] + 1}`);
+      if (!label) return;
+
+      markerCount[currentPage]++;
+      const markerData = { x, y, label };
+      markers[currentPage].push(markerData);
+
+      createMarkerElement(x, y, label, markers[currentPage].length - 1);
+      saveMarkers();
+      updateTable();
+    }
+
+    function createMarkerElement(x, y, label, index) {
+      const marker = document.createElement('div');
+      marker.className = 'marker';
+      marker.style.left = x + 'px';
+      marker.style.top = y + 'px';
+      marker.setAttribute('data-label', label);
+      marker.setAttribute('data-index', index);
+      wrapper.appendChild(marker);
+    }
+
+    function removeMarker(index) {
+      markers[currentPage].splice(index, 1);
+      saveMarkers();
+      showPage(currentPage); // Refresh
+    }
+
+    function updateTable() {
+      const tbody = document.getElementById('coords-table');
+      tbody.innerHTML = markers[currentPage].map((m, i) => `
+        <tr>
+          <td><input value="${m.label}" onchange="updateLabel(${i}, this.value)"></td>
+          <td>${m.x}</td>
+          <td>${m.y}</td>
+          <td><button onclick="removeMarker(${i})">מחק</button></td>
+        </tr>
+      `).join('');
+    }
+
+    function updateLabel(index, newLabel) {
+      markers[currentPage][index].label = newLabel;
+      saveMarkers();
+      showPage(currentPage);
+    }
+
+    function saveMarkers() {
+      localStorage.setItem('pdfCoordinates', JSON.stringify(markers));
+    }
+
+    function toggleGrid() {
+      showGrid = !showGrid;
+      const svg = document.getElementById('grid-overlay');
+      svg.style.display = showGrid ? 'block' : 'none';
+
+      if (showGrid && svg.innerHTML === '') {
+        let lines = '';
+        for (let i = 0; i <= 100; i += 5) {
+          lines += `<line x1="${i}%" y1="0" x2="${i}%" y2="100%" stroke="#f97316" stroke-width="0.5"/>`;
+          lines += `<line x1="0" y1="${i}%" x2="100%" y2="${i}%" stroke="#f97316" stroke-width="0.5"/>`;
+        }
+        svg.innerHTML = lines;
+      }
+    }
+
+    function exportCoords() {
+      const data = {
+        page1: markers[1],
+        page2: markers[2],
+        imageSize: {
+          width: img.naturalWidth,
+          height: img.naturalHeight
+        }
+      };
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'pdf-coordinates.json';
+      a.click();
+    }
+
+    function copyCoords() {
+      const data = {
+        page1: markers[1],
+        page2: markers[2]
+      };
+      navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+      alert('הקואורדינטות הועתקו ללוח!');
+    }
+
+    // Initial load
+    updateTable();
+    setTimeout(() => {
+      markers[1].forEach((m, i) => createMarkerElement(m.x, m.y, m.label, i));
+    }, 500);
+  </script>
+</body>
+</html>

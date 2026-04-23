@@ -1,0 +1,39 @@
+# Frontend Dockerfile for Cloud Run
+# This Dockerfile accepts VITE_API_URL as a build argument
+
+# Build Stage
+FROM node:20-slim as builder
+
+WORKDIR /app
+
+# Accept build arguments
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source files
+COPY . .
+
+# Build the application with environment variable
+RUN npm run build
+
+# Production Stage
+FROM nginx:alpine
+
+# Copy custom nginx config for Cloud Run
+COPY nginx.cloudrun.conf /etc/nginx/conf.d/default.conf
+
+# Copy built files
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Cloud Run uses PORT environment variable
+ENV PORT=80
+EXPOSE 80
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

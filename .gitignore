@@ -1,0 +1,36 @@
+# Env files (never commit secrets)
+.env
+.env.local
+**/.env.local
+**/.env.*.local
+.env.production.local
+
+# Node
+node_modules/
+**/node_modules/
+
+# Build outputs
+**/dist/
+**/build/
+.next/
+
+# Logs
+*.log
+**/*.log
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Docker
+.docker/
+
+# Cloud Build local state
+/tmp/

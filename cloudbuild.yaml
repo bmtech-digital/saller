@@ -1,0 +1,130 @@
+# =====================================================================
+# Cloud Build — bemtech-478413 deployment
+# Wires Supabase env vars from Secret Manager (SALLER_SUPABASE_*).
+# Run with:
+#   gcloud builds submit --config=cloudbuild.yaml --project=bemtech-478413
+# =====================================================================
+
+substitutions:
+  _REGION: 'me-west1'
+  _BACKEND_SERVICE: 'saller-backend'
+  _FRONTEND_SERVICE: 'saller-frontend'
+
+steps:
+  # ========== BACKEND ==========
+
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        TAG="${SHORT_SHA:-latest}"
+        docker build \
+          -t gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:$$TAG \
+          -t gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:latest \
+          ./proposal-system/backend
+        echo "$$TAG" > /workspace/tag.txt
+    id: 'build-backend'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '--all-tags', 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}']
+    id: 'push-backend'
+    waitFor: ['build-backend']
+
+  # Deploy backend with Supabase secrets wired from Secret Manager
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        TAG=$(cat /workspace/tag.txt)
+        gcloud run deploy ${_BACKEND_SERVICE} \
+          --image gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:$$TAG \
+          --region ${_REGION} \
+          --platform managed \
+          --allow-unauthenticated \
+          --memory 1Gi \
+          --port 8080 \
+          --set-env-vars "NODE_ENV=production" \
+          --set-secrets "SUPABASE_URL=SALLER_SUPABASE_URL:latest,SUPABASE_ANON_KEY=SALLER_SUPABASE_ANON_KEY:latest,SUPABASE_SERVICE_KEY=SALLER_SUPABASE_SERVICE_KEY:latest"
+    id: 'deploy-backend'
+    waitFor: ['push-backend']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud run services describe ${_BACKEND_SERVICE} \
+          --region=${_REGION} \
+          --format='value(status.url)' > /workspace/backend_url.txt
+        echo "Backend URL: $(cat /workspace/backend_url.txt)"
+    id: 'get-backend-url'
+    waitFor: ['deploy-backend']
+
+  # ========== FRONTEND ==========
+
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        BACKEND_URL=$(cat /workspace/backend_url.txt)
+        TAG=$(cat /workspace/tag.txt)
+        echo "Building frontend with API URL: $${BACKEND_URL}/api"
+        docker build \
+          --build-arg VITE_API_URL=$${BACKEND_URL}/api \
+          -t gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:$$TAG \
+          -t gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:latest \
+          -f ./proposal-system/frontend/Dockerfile.cloudrun \
+          ./proposal-system/frontend
+    id: 'build-frontend'
+    waitFor: ['get-backend-url']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '--all-tags', 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}']
+    id: 'push-frontend'
+    waitFor: ['build-frontend']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        TAG=$(cat /workspace/tag.txt)
+        gcloud run deploy ${_FRONTEND_SERVICE} \
+          --image gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:$$TAG \
+          --region ${_REGION} \
+          --platform managed \
+          --allow-unauthenticated \
+          --memory 256Mi \
+          --port 80
+    id: 'deploy-frontend'
+    waitFor: ['push-frontend']
+
+  # ========== FINALIZE — set FRONTEND_URL on backend for CORS ==========
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        FRONTEND_URL=$(gcloud run services describe ${_FRONTEND_SERVICE} \
+          --region=${_REGION} --format='value(status.url)')
+        gcloud run services update ${_BACKEND_SERVICE} \
+          --region=${_REGION} \
+          --update-env-vars="FRONTEND_URL=$${FRONTEND_URL}"
+        echo ""
+        echo "========================================"
+        echo "        DEPLOYMENT COMPLETE!"
+        echo "========================================"
+        echo "Frontend: $${FRONTEND_URL}"
+        echo "Backend:  $(cat /workspace/backend_url.txt)"
+        echo "========================================"
+    id: 'finalize'
+    waitFor: ['deploy-frontend']
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: '1200s'

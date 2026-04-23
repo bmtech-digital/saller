@@ -1,0 +1,191 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* RTL Support */
+html {
+  direction: rtl;
+}
+
+body {
+  font-family: 'Heebo', system-ui, sans-serif;
+  background-color: #f8fafc;
+  color: #1a1a1a;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Utility classes */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-500;
+  }
+
+  .btn-secondary {
+    @apply btn bg-dark-800 text-white hover:bg-dark-700 focus:ring-dark-500;
+  }
+
+  .btn-outline {
+    @apply btn border-2 border-dark-300 text-dark-700 hover:bg-dark-100 focus:ring-dark-300;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-500 text-white hover:bg-red-600 focus:ring-red-500;
+  }
+
+  .btn-ghost {
+    @apply btn text-dark-600 hover:bg-dark-100 focus:ring-dark-300;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-lg;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-sm;
+  }
+
+  .input {
+    @apply w-full px-4 py-2.5 border border-dark-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 bg-white;
+  }
+
+  .input-error {
+    @apply border-red-500 focus:ring-red-500;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-dark-700 mb-1.5;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-dark-200;
+  }
+
+  .card-header {
+    @apply px-6 py-4 border-b border-dark-200;
+  }
+
+  .card-body {
+    @apply p-6;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  .status-draft {
+    @apply status-badge bg-gray-100 text-gray-700;
+  }
+
+  .status-sent {
+    @apply status-badge bg-blue-100 text-blue-700;
+  }
+
+  .status-signed {
+    @apply status-badge bg-green-100 text-green-700;
+  }
+
+  .status-void {
+    @apply status-badge bg-red-100 text-red-700;
+  }
+}
+
+/* Mobile improvements */
+@media (max-width: 640px) {
+  .input {
+    @apply py-3 text-base;
+  }
+}
+
+/* iOS Safari date input fix */
+input[type="date"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  min-height: 44px;
+  background-color: white;
+  font-size: 16px; /* Prevents iOS zoom on focus */
+}
+
+/* Ensure consistent styling for all inputs on iOS */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea {
+    font-size: 16px; /* Prevents iOS zoom */
+  }
+
+  input[type="date"],
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"] {
+    -webkit-appearance: none;
+    border-radius: 0.5rem;
+  }
+}
+
+/* Loading spinner */
+.spinner {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #f97316;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Toast animations */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.toast-enter {
+  animation: slideIn 0.3s ease-out;
+}
+
+.toast-exit {
+  animation: slideOut 0.3s ease-in;
+}

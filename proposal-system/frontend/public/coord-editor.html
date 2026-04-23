@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>עורך קואורדינטות PDF</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #1a1a2e;
+      color: white;
+      min-height: 100vh;
+    }
+    .header {
+      background: #16213e;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+    }
+    .header h1 { font-size: 20px; }
+    .page-selector {
+      display: flex;
+      gap: 10px;
+    }
+    .page-btn {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    .page-btn.active {
+      background: #f97316;
+      color: white;
+    }
+    .page-btn:not(.active) {
+      background: #374151;
+      color: #9ca3af;
+    }
+    .container {
+      display: flex;
+      margin-top: 60px;
+    }
+    .image-container {
+      flex: 1;
+      overflow: auto;
+      height: calc(100vh - 60px);
+      position: relative;
+    }
+    .image-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+    .image-wrapper img {
+      display: block;
+      max-width: none;
+    }
+    .marker {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: #f97316;
+      border: 3px solid white;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+    .sidebar {
+      width: 380px;
+      background: #16213e;
+      padding: 20px;
+      height: calc(100vh - 60px);
+      overflow-y: auto;
+    }
+    .sidebar h2 {
+      margin-bottom: 15px;
+      color: #f97316;
+    }
+    .coord-item {
+      background: #1a1a2e;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.3s;
+    }
+    .coord-item:hover {
+      border-color: #374151;
+    }
+    .coord-item.selected {
+      border-color: #f97316;
+      background: #0f3460;
+    }
+    .coord-item label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #f97316;
+      cursor: pointer;
+    }
+    .coord-inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .coord-inputs input {
+      padding: 10px;
+      border: 1px solid #374151;
+      border-radius: 4px;
+      background: #374151;
+      color: white;
+      font-size: 16px;
+      text-align: center;
+    }
+    .coord-inputs input:focus {
+      outline: none;
+      border-color: #f97316;
+    }
+    .current-pos {
+      background: #0f3460;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .current-pos .coords {
+      font-size: 28px;
+      font-weight: bold;
+      color: #f97316;
+    }
+    .current-pos .selected-field {
+      margin-top: 10px;
+      padding: 8px;
+      background: #f97316;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    .btn-primary {
+      background: #f97316;
+      color: white;
+    }
+    .btn-secondary {
+      background: #374151;
+      color: white;
+    }
+    .output {
+      background: #0d1117;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      max-height: 200px;
+      overflow-y: auto;
+      direction: ltr;
+      text-align: left;
+    }
+    .instructions {
+      background: #22c55e;
+      color: black;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: 14px;
+      font-weight: bold;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>עורך קואורדינטות PDF</h1>
+    <div class="page-selector">
+      <button class="page-btn" onclick="loadPage(1)">דף 1</button>
+      <button class="page-btn active" onclick="loadPage(2)">דף 2</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="image-container" id="imageContainer">
+      <div class="image-wrapper" id="imageWrapper">
+        <img id="templateImage" src="/contr/page-0002.jpg" alt="Template">
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="instructions" id="instructions">
+        👆 לחץ על שדה למטה, ואז לחץ על התמונה
+      </div>
+
+      <div class="current-pos">
+        <div>מיקום נוכחי:</div>
+        <div class="coords" id="currentCoords">X: 0, Y: 0</div>
+        <div class="selected-field" id="selectedFieldDisplay" style="display:none"></div>
+      </div>
+
+      <h2>שדות לקוח (דף 2)</h2>
+
+      <div class="coord-item" data-field="date" onclick="selectField('date', 'תאריך')">
+        <label>📅 תאריך</label>
+        <div class="coord-inputs">
+          <input type="number" id="date_x" placeholder="X" readonly>
+          <input type="number" id="date_y" placeholder="Y" readonly>
+        </div>
+      </div>
+
+      <div class="coord-item" data-field="phone" onclick="selectField('phone', 'טלפון איש קשר')">
+        <label>📞 טלפון איש קשר</label>
+        <div class="coord-inputs">
+          <input type="number" id="phone_x" placeholder="X" readonly>
+          <input type="number" id="phone_y" placeholder="Y" readonly>
+        </div>
+      </div>
+
+      <div class="coord-item" data-field="accounting" onclick="selectField('accounting', 'איש קשר הנהלת חשבונות')">
+        <label>👤 איש קשר הנהלת חשבונות</label>
+        <div class="coord-inputs">
+          <input type="number" id="accounting_x" placeholder="X" readonly>
+          <input type="number" id="accounting_y" placeholder="Y" readonly>
+        </div>
+      </div>
+
+      <div class="coord-item" data-field="company" onclick="selectField('company', 'מספר ח.פ')">
+        <label>🏢 מספר ח.פ</label>
+        <div class="coord-inputs">
+          <input type="number" id="company_x" placeholder="X" readonly>
+          <input type="number" id="company_y" placeholder="Y" readonly>
+        </div>
+      </div>
+
+      <div class="coord-item" data-field="email" onclick="selectField('email', 'מייל לשליחת חשבוניות')">
+        <label>📧 מייל לשליחת חשבוניות</label>
+        <div class="coord-inputs">
+          <input type="number" id="email_x" placeholder="X" readonly>
+          <input type="number" id="email_y" placeholder="Y" readonly>
+        </div>
+      </div>
+
+      <div class="coord-item" data-field="sig" onclick="selectField('sig', 'חתימה')">
+        <label>✍️ חתימה</label>
+        <div class="coord-inputs">
+          <input type="number" id="sig_x" placeholder="X" readonly>
+          <input type="number" id="sig_y" placeholder="Y" readonly>
+          <input type="number" id="sig_w" placeholder="רוחב" value="200">
+          <input type="number" id="sig_h" placeholder="גובה" value="80">
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="generateCode()">📋 הפק קוד</button>
+      <button class="btn btn-secondary" onclick="copyCode()">העתק לזכרון</button>
+
+      <div class="output" id="output"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentPage = 2;
+    let selectedField = null;
+    let selectedFieldName = '';
+    let markers = {};
+
+    const img = document.getElementById('templateImage');
+    const wrapper = document.getElementById('imageWrapper');
+    const currentCoords = document.getElementById('currentCoords');
+    const selectedFieldDisplay = document.getElementById('selectedFieldDisplay');
+    const instructions = document.getElementById('instructions');
+
+    // Track mouse position
+    wrapper.addEventListener('mousemove', (e) => {
+      const rect = img.getBoundingClientRect();
+      const x = Math.round(e.clientX - rect.left);
+      const y = Math.round(e.clientY - rect.top);
+      currentCoords.textContent = `X: ${x}, Y: ${y}`;
+    });
+
+    // Select a field
+    function selectField(field, name) {
+      selectedField = field;
+      selectedFieldName = name;
+
+      // Update UI
+      document.querySelectorAll('.coord-item').forEach(item => {
+        item.classList.remove('selected');
+      });
+      document.querySelector(`[data-field="${field}"]`).classList.add('selected');
+
+      selectedFieldDisplay.style.display = 'block';
+      selectedFieldDisplay.textContent = `נבחר: ${name}`;
+      instructions.textContent = `👆 עכשיו לחץ על התמונה לסמן "${name}"`;
+      instructions.style.background = '#f97316';
+    }
+
+    // Click to set coordinates
+    wrapper.addEventListener('click', (e) => {
+      if (!selectedField) {
+        alert('קודם לחץ על שדה בצד ימין!');
+        return;
+      }
+
+      const rect = img.getBoundingClientRect();
+      const x = Math.round(e.clientX - rect.left);
+      const y = Math.round(e.clientY - rect.top);
+
+      // Set values in inputs
+      document.getElementById(`${selectedField}_x`).value = x;
+      document.getElementById(`${selectedField}_y`).value = y;
+
+      // Remove old marker for this field
+      if (markers[selectedField]) {
+        markers[selectedField].remove();
+      }
+
+      // Create marker
+      const marker = document.createElement('div');
+      marker.className = 'marker';
+      marker.style.left = x + 'px';
+      marker.style.top = y + 'px';
+      marker.textContent = selectedFieldName.charAt(0);
+      marker.title = `${selectedFieldName}\nX: ${x}, Y: ${y}`;
+      wrapper.appendChild(marker);
+      markers[selectedField] = marker;
+
+      // Visual feedback
+      instructions.textContent = `✅ "${selectedFieldName}" נקבע! בחר שדה נוסף`;
+      instructions.style.background = '#22c55e';
+
+      // Clear selection
+      selectedField = null;
+      selectedFieldName = '';
+      document.querySelectorAll('.coord-item').forEach(item => {
+        item.classList.remove('selected');
+      });
+    });
+
+    function loadPage(page) {
+      currentPage = page;
+      document.querySelectorAll('.page-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', i + 1 === page);
+      });
+
+      // Clear markers
+      Object.values(markers).forEach(m => m.remove());
+      markers = {};
+
+      // Load image
+      const imgSrc = page === 1 ? '/contr/page-00001.jpg' : '/contr/page-0002.jpg';
+      img.src = imgSrc;
+    }
+
+    function generateCode() {
+      const code = `// הוסף ל-pdfCoordinates.ts בתוך page2:
+clientSign: {
+  תאריך: { x: ${document.getElementById('date_x').value || 0}, y: ${document.getElementById('date_y').value || 0}, fontSize: 18 },
+  טלפון_איש_קשר: { x: ${document.getElementById('phone_x').value || 0}, y: ${document.getElementById('phone_y').value || 0}, fontSize: 18 },
+  איש_קשר_הנהלת_חשבונות: { x: ${document.getElementById('accounting_x').value || 0}, y: ${document.getElementById('accounting_y').value || 0}, fontSize: 18 },
+  מספר_חפ: { x: ${document.getElementById('company_x').value || 0}, y: ${document.getElementById('company_y').value || 0}, fontSize: 18 },
+  מייל_חשבוניות: { x: ${document.getElementById('email_x').value || 0}, y: ${document.getElementById('email_y').value || 0}, fontSize: 18 },
+  חתימה: { x: ${document.getElementById('sig_x').value || 0}, y: ${document.getElementById('sig_y').value || 0}, width: ${document.getElementById('sig_w').value || 200}, height: ${document.getElementById('sig_h').value || 80} }
+}`;
+
+      document.getElementById('output').textContent = code;
+    }
+
+    function copyCode() {
+      const code = document.getElementById('output').textContent;
+      if (!code) {
+        generateCode();
+      }
+      navigator.clipboard.writeText(document.getElementById('output').textContent);
+      alert('הקוד הועתק!');
+    }
+  </script>
+</body>
+</html>

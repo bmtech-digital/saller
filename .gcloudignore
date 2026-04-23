@@ -1,0 +1,31 @@
+# Ignore node_modules
+**/node_modules/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local env files
+**/.env.local
+**/.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker buildx refs
+.docker/
+
+# Build outputs that will be regenerated
+**/dist/
+**/build/
+
+# Logs
+**/*.log
+**/npm-debug.log*
