@@ -7,19 +7,25 @@
 
 A two-service web app that lets the Aiweon admin manage customers, build & send proposals, capture client signatures, and track campaigns. Hebrew RTL UI throughout.
 
-- **Frontend**: Vite + React + TypeScript, served by nginx in a Cloud Run container
-- **Backend**: Node + Express + TypeScript, port 8080, Cloud Run container
+- **Frontend**: Vite + React + TypeScript, deployed to **Firebase Hosting** (default site `bemtech-478413`)
+- **Backend**: Node + Express + TypeScript, port 8080, Cloud Run (region `me-west1`)
 - **Database & Auth**: Supabase Postgres (auth + REST + storage)
-- **Hosting**: Google Cloud Run, region `me-west1` (Tel Aviv)
 - **CI/CD**: Cloud Build on push, secrets via GCP Secret Manager
 
 ## Live URLs (bemtech deployment)
 
 | | URL |
 |---|---|
-| Frontend | https://saller-frontend-5c5iudcfoq-zf.a.run.app |
-| Backend  | https://saller-backend-5c5iudcfoq-zf.a.run.app |
+| Frontend (canonical) | https://crm.aiweon.co.il |
+| Frontend (Firebase default) | https://bemtech-478413.web.app |
+| Backend | https://saller-backend-600758223942.me-west1.run.app |
 | Supabase | https://qzzkvaqtztxfpzisorld.supabase.co |
+
+The custom domain `crm.aiweon.co.il` is wired in Cloud DNS (zone `aiweon-co-il` in `bemtech-478413`) via:
+- `CNAME crm.aiweon.co.il → bemtech-478413.web.app.`
+- `TXT _acme-challenge.crm.aiweon.co.il` (Let's Encrypt validation, set 2026-04-26)
+
+Firebase auto-provisions and renews the cert. Initial provisioning takes 5–30 min after DNS is set; check status via the Firebase Hosting REST API on `customDomains/crm.aiweon.co.il` (look at `cert.state` — `CERT_VALIDATING` → `CERT_ACTIVE`).
 
 **Login**: any registered user. Every authenticated user is implicitly an admin and sees all rows (see "Access model" below). Existing accounts:
 - `admin@aiweon.co.il` / `NewAdmin!234` — created the migrated data (4 customers, 4 proposals)
@@ -35,7 +41,9 @@ A two-service web app that lets the Aiweon admin manage customers, build & send 
 |---|---|
 | GCP project | `bemtech-478413` (project number `600758223942`) |
 | Region | `me-west1` |
-| Cloud Run services | `saller-backend`, `saller-frontend` |
+| Cloud Run services | `saller-backend` (frontend moved to Firebase Hosting on 2026-04-26) |
+| Firebase Hosting site | `bemtech-478413` (default site, custom domain `crm.aiweon.co.il`) |
+| Cloud DNS zones | `aiweon-co-il`, `weon-co-il` |
 | Secret Manager keys | `SALLER_SUPABASE_URL`, `SALLER_SUPABASE_ANON_KEY`, `SALLER_SUPABASE_SERVICE_KEY` |
 | Supabase org | bmtech-digital's Org (Pro plan) |
 | Supabase project ref | `qzzkvaqtztxfpzisorld` |
@@ -54,6 +62,17 @@ This project was forked off `bmtech-digital/saller` and re-homed under bemtech i
 6. **IAM gotcha** — `--allow-unauthenticated` is silently rejected on bemtech-478413 (org policy at parent folder). After every fresh deploy: `gcloud run services add-iam-policy-binding <svc> --member=allUsers --role=roles/run.invoker`.
 
 **Migrated data**: 4 customers, 4 proposals (1 signed with 15KB signature payload), 1 signature. Empty in source: campaigns, proposal_blocks, block_text_items, documents, send_logs.
+
+## Frontend hosting migration (2026-04-26)
+
+Frontend moved off Cloud Run (`saller-frontend`) onto **Firebase Hosting** to enable a custom domain. `me-west1` doesn't support Cloud Run domain mappings, so the alternatives were a global LB (~$18/mo) or Firebase Hosting (free + global CDN). Picked Firebase. Trail:
+
+1. **Firebase added to bemtech-478413** via the Firebase Console (the CLI's `addFirebase` returned 403; manual UI flow worked because it handles ToS acceptance + quota project setup).
+2. **`firebase.json` + `.firebaserc`** committed at the repo root. Hosting target = `proposal-system/frontend/dist`, with SPA rewrites and asset caching headers.
+3. **Custom domain registered** via the Firebase Hosting REST API: `crm.aiweon.co.il`. Firebase issued a CNAME requirement (→ `bemtech-478413.web.app`) and an ACME TXT challenge — both added to the `aiweon-co-il` Cloud DNS zone in a single transaction.
+4. **Cloud Build SA granted Firebase access**: `roles/firebasehosting.admin` + `roles/serviceusage.serviceUsageConsumer` on bemtech-478413. CI deploys via ADC, no token secret needed.
+5. **`cloudbuild.yaml` rewritten**: backend deploy → Vite build with `VITE_API_URL` set → `firebase deploy --only hosting`. Backend `FRONTEND_URL` is now hardcoded to `https://crm.aiweon.co.il` (no longer derived from a deploy URL).
+6. **Backend CORS** updated on the running `saller-backend` service to point at the new domain.
 
 ## Local development
 
@@ -81,15 +100,24 @@ docker compose -f docker-compose.dev.yml up
 
 ```sh
 gcloud builds submit --config=cloudbuild.yaml --project=bemtech-478413
-# Required after every fresh deploy due to org policy:
-for svc in saller-backend saller-frontend; do
-  gcloud run services add-iam-policy-binding "$svc" \
-    --member=allUsers --role=roles/run.invoker \
-    --project=bemtech-478413 --region=me-west1
-done
+# Required after every fresh backend deploy due to org policy:
+gcloud run services add-iam-policy-binding saller-backend \
+  --member=allUsers --role=roles/run.invoker \
+  --project=bemtech-478413 --region=me-west1
 ```
 
-Cloud Build pipeline (`cloudbuild.yaml`): builds backend → deploys with secrets wired → reads back URL → builds frontend with `VITE_API_URL` baked in → deploys frontend → updates backend's `FRONTEND_URL` for CORS.
+Cloud Build pipeline (`cloudbuild.yaml`):
+1. Builds + deploys backend container to Cloud Run with Supabase secrets wired and `FRONTEND_URL=https://crm.aiweon.co.il` set on the backend (CORS).
+2. Builds the Vite frontend with `VITE_API_URL=<backend-run-url>/api` baked in.
+3. Deploys the Vite `dist/` to Firebase Hosting via `firebase deploy --only hosting`. Auth uses ADC: the Cloud Build SA `600758223942@cloudbuild.gserviceaccount.com` has `roles/firebasehosting.admin` and `roles/serviceusage.serviceUsageConsumer`. No `FIREBASE_TOKEN` is needed.
+
+Manual frontend-only deploy (skips Cloud Build, just publishes the latest local bundle):
+```sh
+cd proposal-system/frontend
+VITE_API_URL=https://saller-backend-600758223942.me-west1.run.app/api npm run build
+cd ..
+firebase deploy --only hosting --project=bemtech-478413
+```
 
 ## Architecture quirks worth knowing
 
@@ -98,6 +126,7 @@ Cloud Build pipeline (`cloudbuild.yaml`): builds backend → deploys with secret
 - **`/api/auth/register` is unauthenticated in production** — anyone can create accounts. Code comment even flags this; needs an admin-middleware wrap before this becomes externally known.
 - **`campaigns.controller` uses `supabaseAdmin`** to bypass RLS (per commit `2764368`). Contrast with `customers.controller` which uses `createUserClient` and respects RLS.
 - **Two backends were on bemtech-478413** when we started: ours (`saller-backend`) and a leftover `proposal-backend` from a prior attempt. Only ours points at the new Supabase.
+- **Firebase project ≡ GCP project** — Firebase was added to `bemtech-478413` on 2026-04-26 (interactive Console flow because the CLI's `addFirebase` 403'd). **Deleting the Firebase project deletes bemtech-478413 and everything in it** (Cloud Run, Cloud DNS, Secret Manager). Manage via Firebase Console with care.
 
 ## Open follow-ups
 
@@ -106,6 +135,6 @@ Cloud Build pipeline (`cloudbuild.yaml`): builds backend → deploys with secret
 - [ ] Investigate the paused `signature` Supabase project in bmtech-digital org — likely abandoned, confirm and delete
 - [ ] Wrap `/api/auth/register` with admin middleware
 - [ ] Make the `--allow-unauthenticated` IAM binding part of the cloudbuild finalize step (self-healing)
-- [ ] Add a custom domain (currently raw `*.run.app` URLs)
+- [ ] Once `cert.state` for `crm.aiweon.co.il` flips to `CERT_ACTIVE`, decommission the now-stale `saller-frontend` Cloud Run service: `gcloud run services delete saller-frontend --region=me-west1 --project=bemtech-478413`. Container image `gcr.io/bemtech-478413/saller-frontend` can be cleaned up afterwards.
 - [ ] Drop unused `proposal_blocks` / `block_text_items` / `documents` tables
 - [ ] Investigate why prod RLS was broken (we exploited it, but oren should know to fix on his side too)
