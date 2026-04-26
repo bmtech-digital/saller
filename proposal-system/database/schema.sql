@@ -239,70 +239,15 @@ alter table signatures enable row level security;
 alter table documents enable row level security;
 alter table send_logs enable row level security;
 
-create policy "customers_owner_all" on customers
-for all
-using (owner_id = auth.uid())
-with check (owner_id = auth.uid());
-
-create policy "proposals_owner_all" on proposals
-for all
-using (owner_id = auth.uid())
-with check (owner_id = auth.uid());
-
-create policy "blocks_owner_all" on proposal_blocks
-for all
-using (
-  exists (select 1 from proposals p where p.id = proposal_blocks.proposal_id and p.owner_id = auth.uid())
-)
-with check (
-  exists (select 1 from proposals p where p.id = proposal_blocks.proposal_id and p.owner_id = auth.uid())
-);
-
-create policy "block_text_owner_all" on block_text_items
-for all
-using (
-  exists (
-    select 1
-    from proposal_blocks b
-    join proposals p on p.id = b.proposal_id
-    where b.id = block_text_items.block_id and p.owner_id = auth.uid()
-  )
-)
-with check (
-  exists (
-    select 1
-    from proposal_blocks b
-    join proposals p on p.id = b.proposal_id
-    where b.id = block_text_items.block_id and p.owner_id = auth.uid()
-  )
-);
-
-create policy "signatures_owner_all" on signatures
-for all
-using (
-  exists (select 1 from proposals p where p.id = signatures.proposal_id and p.owner_id = auth.uid())
-)
-with check (
-  exists (select 1 from proposals p where p.id = signatures.proposal_id and p.owner_id = auth.uid())
-);
-
-create policy "documents_owner_all" on documents
-for all
-using (
-  exists (select 1 from proposals p where p.id = documents.proposal_id and p.owner_id = auth.uid())
-)
-with check (
-  exists (select 1 from proposals p where p.id = documents.proposal_id and p.owner_id = auth.uid())
-);
-
-create policy "sendlogs_owner_all" on send_logs
-for all
-using (
-  exists (select 1 from proposals p where p.id = send_logs.proposal_id and p.owner_id = auth.uid())
-)
-with check (
-  exists (select 1 from proposals p where p.id = send_logs.proposal_id and p.owner_id = auth.uid())
-);
+-- Shared-admin model: every authenticated user has full access to every row.
+-- owner_id is retained as "who created this row" but does not restrict visibility.
+create policy "authenticated_all" on customers         for all to authenticated using (true) with check (true);
+create policy "authenticated_all" on proposals         for all to authenticated using (true) with check (true);
+create policy "authenticated_all" on proposal_blocks   for all to authenticated using (true) with check (true);
+create policy "authenticated_all" on block_text_items  for all to authenticated using (true) with check (true);
+create policy "authenticated_all" on signatures        for all to authenticated using (true) with check (true);
+create policy "authenticated_all" on documents         for all to authenticated using (true) with check (true);
+create policy "authenticated_all" on send_logs         for all to authenticated using (true) with check (true);
 
 -- =========================
 -- Error Logs (Admin Only)

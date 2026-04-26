@@ -26,18 +26,6 @@ create trigger campaigns_updated_at
 -- RLS
 alter table campaigns enable row level security;
 
-create policy "Users can view own campaigns"
-  on campaigns for select
-  using (owner_id = auth.uid());
-
-create policy "Users can create own campaigns"
-  on campaigns for insert
-  with check (owner_id = auth.uid());
-
-create policy "Users can update own campaigns"
-  on campaigns for update
-  using (owner_id = auth.uid());
-
-create policy "Users can delete own campaigns"
-  on campaigns for delete
-  using (owner_id = auth.uid());
+-- Shared-admin model: every authenticated user has full access to every row.
+create policy "authenticated_all" on campaigns
+  for all to authenticated using (true) with check (true);

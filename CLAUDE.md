@@ -21,9 +21,13 @@ A two-service web app that lets the Aiweon admin manage customers, build & send 
 | Backend  | https://saller-backend-5c5iudcfoq-zf.a.run.app |
 | Supabase | https://qzzkvaqtztxfpzisorld.supabase.co |
 
-**Login**:
-- `admin@aiweon.co.il` / `NewAdmin!234` — owns all migrated data (4 customers, 4 proposals)
-- `roihalamish@gmail.com` / `Admin!234` — fresh user, RLS will scope to no data
+**Login**: any registered user. Every authenticated user is implicitly an admin and sees all rows (see "Access model" below). Existing accounts:
+- `admin@aiweon.co.il` / `NewAdmin!234` — created the migrated data (4 customers, 4 proposals)
+- `roihalamish@gmail.com` / `Admin!234`
+
+## Access model
+
+**Every authenticated user is an admin and has full CRUD access to every row in every business table.** RLS is still on, but the policies are `for all to authenticated using (true) with check (true)` rather than `owner_id = auth.uid()`. `owner_id` columns remain as "who created this row" but no longer restrict visibility. Applied 2026-04-26 via `proposal-system/database/rls-shared-access.sql`; `schema.sql` and `campaigns.sql` reflect this model for fresh deploys. The `anon` role still has no row access — public flows (e.g. client signing via `client_token`) go through the backend with `supabaseAdmin`.
 
 ## GCP & Supabase coordinates
 
