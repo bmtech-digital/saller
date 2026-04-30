@@ -80,27 +80,36 @@ export function DashboardPage() {
     try {
       // First try to get proposal with contract_data
       const fullProposal = await api.getProposal(proposal.id) as any;
+      const type = (fullProposal?.project_type || proposal.project_type) as
+        | 'influencers'
+        | 'videos'
+        | 'agents'
+        | undefined;
 
       if (fullProposal?.contract_data) {
-        // Use frontend PDF generator with template images (supports Hebrew)
-        await openContractPDF({
-          customerName: fullProposal.contract_data.customerName || proposal.customer?.full_name || '',
-          date: fullProposal.contract_data.date || proposal.proposal_date,
-          forText: fullProposal.contract_data.forText || '',
-          platforms: fullProposal.contract_data.platforms || [],
-          whatYouGet: fullProposal.contract_data.whatYouGet || '',
-          cost: fullProposal.contract_data.cost || proposal.total
-        });
+        await openContractPDF(
+          {
+            ...fullProposal.contract_data,
+            customerName: fullProposal.contract_data.customerName || proposal.customer?.full_name || '',
+            date: fullProposal.contract_data.date || proposal.proposal_date,
+          },
+          undefined,
+          type
+        );
       } else {
-        // Fallback: use contract data based on proposal info
-        await openContractPDF({
-          customerName: proposal.customer?.full_name || '',
-          date: proposal.proposal_date,
-          forText: proposal.customer?.full_name || '',
-          platforms: [],
-          whatYouGet: '',
-          cost: proposal.total
-        });
+        // Fallback: minimal contract data based on proposal info
+        await openContractPDF(
+          {
+            customerName: proposal.customer?.full_name || '',
+            date: proposal.proposal_date,
+            forText: proposal.customer?.full_name || '',
+            platforms: [],
+            whatYouGet: '',
+            cost: proposal.total,
+          },
+          undefined,
+          type
+        );
       }
     } catch (error) {
       console.error('PDF generation error:', error);

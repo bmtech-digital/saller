@@ -217,10 +217,15 @@ class ApiService {
   async sendProposal(proposalId: string, channel: 'whatsapp' | 'sms' | 'email', contractData?: {
     customerName: string;
     date: string;
-    forText: string;
-    platforms: string[];
-    whatYouGet: string;
-    cost: number;
+    forText?: string;
+    platforms?: string[];
+    whatYouGet?: string;
+    cost?: number;
+    subject?: string;
+    packagePrice?: number;
+    finalPrice?: number;
+    websiteName?: string;
+    recommendedPackage?: string;
   }) {
     return this.request(`/proposals/${proposalId}/send`, {
       method: 'POST',

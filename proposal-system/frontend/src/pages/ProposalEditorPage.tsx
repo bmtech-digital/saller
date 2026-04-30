@@ -25,7 +25,8 @@ import { ContractForm } from '../components/ContractForm';
 import type { PlatformId } from '../config/pdfCoordinates';
 import { Loading, LoadingOverlay } from '../components/ui/Loading';
 import { useToast } from '../components/ui/Toast';
-import type { ProposalWithDetails, ProposalBlock as BlockType, SendChannel, BlockTextItem } from '../types';
+import type { ProposalWithDetails, ProposalBlock as BlockType, SendChannel, BlockTextItem, ContractData, ProjectType } from '../types';
+import { DEFAULT_PROJECT_TYPE } from '../config/projectTypes';
 
 export function ProposalEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -41,7 +42,7 @@ export function ProposalEditorPage() {
   const [showWhatsappOptions, setShowWhatsappOptions] = useState(false);
   const [showManualPhoneInput, setShowManualPhoneInput] = useState(false);
   const [manualPhone, setManualPhone] = useState('');
-  const [contractData, setContractData] = useState({
+  const [contractData, setContractData] = useState<ContractData>({
     customerName: '',
     date: new Date().toISOString().split('T')[0],
     forText: '',
@@ -50,7 +51,9 @@ export function ProposalEditorPage() {
     cost: 0
   });
 
-  const handleContractChange = (data: typeof contractData) => {
+  const projectType: ProjectType = (proposal?.project_type as ProjectType | undefined) || DEFAULT_PROJECT_TYPE;
+
+  const handleContractChange = (data: ContractData) => {
     setContractData(data);
   };
 
@@ -72,7 +75,12 @@ export function ProposalEditorPage() {
           forText: data.contract_data.forText || '',
           platforms: (data.contract_data.platforms || []) as PlatformId[],
           whatYouGet: data.contract_data.whatYouGet || '',
-          cost: data.contract_data.cost || 0
+          cost: data.contract_data.cost || 0,
+          subject: data.contract_data.subject,
+          packagePrice: data.contract_data.packagePrice,
+          finalPrice: data.contract_data.finalPrice,
+          websiteName: data.contract_data.websiteName,
+          recommendedPackage: data.contract_data.recommendedPackage,
         });
       }
     } catch (error) {
@@ -221,14 +229,14 @@ export function ProposalEditorPage() {
 
     try {
       setIsSaving(true);
-      await openContractPDF({
-        customerName: contractData.customerName || proposal.customer.full_name,
-        date: contractData.date,
-        forText: contractData.forText,
-        platforms: contractData.platforms,
-        whatYouGet: contractData.whatYouGet,
-        cost: contractData.cost
-      });
+      await openContractPDF(
+        {
+          ...contractData,
+          customerName: contractData.customerName || proposal.customer.full_name,
+        },
+        undefined,
+        projectType
+      );
     } catch (error) {
       console.error('PDF generation error:', error);
       showToast('error', 'שגיאה ביצירת PDF');
@@ -243,12 +251,8 @@ export function ProposalEditorPage() {
     try {
       setSendingChannel(channel);
       const response = await api.sendProposal(proposal.id, channel, {
+        ...contractData,
         customerName: contractData.customerName || proposal.customer.full_name,
-        date: contractData.date,
-        forText: contractData.forText,
-        platforms: contractData.platforms,
-        whatYouGet: contractData.whatYouGet,
-        cost: contractData.cost
       }) as {
         message: string;
         sign_url: string;
@@ -370,6 +374,7 @@ export function ProposalEditorPage() {
         {/* Contract Form */}
         <ContractForm
           customerName={proposal.customer.full_name}
+          projectType={projectType}
           initialData={contractData}
           onChange={handleContractChange}
         />
@@ -615,12 +620,8 @@ export function ProposalEditorPage() {
                               try {
                                 setSendingChannel('whatsapp');
                                 const response = await api.sendProposal(proposal.id, 'whatsapp', {
+                                  ...contractData,
                                   customerName: contractData.customerName || proposal.customer.full_name,
-                                  date: contractData.date,
-                                  forText: contractData.forText,
-                                  platforms: contractData.platforms,
-                                  whatYouGet: contractData.whatYouGet,
-                                  cost: contractData.cost
                                 }) as {
                                   message: string;
                                   sign_url: string;

@@ -15,13 +15,27 @@ export interface Customer {
   updated_at: string;
 }
 
+export type AgentPackageId = 'basic' | 'advanced' | 'pro' | 'pro_max';
+
 export interface ContractData {
+  // Common
   customerName: string;
   date: string;
-  forText: string;
-  platforms: string[];
-  whatYouGet: string;
-  cost: number;
+
+  // Influencers
+  forText?: string;
+  platforms?: string[];
+  whatYouGet?: string;
+  cost?: number;
+
+  // Videos
+  subject?: string;        // e.g. "עמרם דיזיין"
+  packagePrice?: number;   // pre-discount, e.g. 6000
+  finalPrice?: number;     // post-discount, e.g. 3800
+
+  // Agents
+  websiteName?: string;            // e.g. "Ahouse.co.il"
+  recommendedPackage?: AgentPackageId;
 }
 
 export interface Proposal {
