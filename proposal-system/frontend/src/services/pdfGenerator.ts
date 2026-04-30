@@ -236,6 +236,14 @@ async function renderVideosPDF(
   ctx.drawImage(page2Img, 0, 0);
   resetTextDefaults(ctx);
 
+  // Override the page-2 header date baked into the template.
+  const p2date = VIDEOS_COORDINATES.page2.תאריך;
+  drawWhiteMask(ctx, p2date.mask);
+  ctx.textAlign = p2date.align;
+  ctx.font = `bold ${p2date.fontSize}px ${PDF_FONT.family}`;
+  ctx.fillText(formatHebrewDate(contractData.date), p2date.x, p2date.y);
+  ctx.textAlign = 'right';
+
   await drawClientSignature(ctx, VIDEOS_COORDINATES.page2.clientSign, clientSignData);
 
   pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, canvas.width, canvas.height);
@@ -320,6 +328,14 @@ async function renderAgentsPDF(
   canvas.height = page2Img.naturalHeight;
   ctx.drawImage(page2Img, 0, 0);
   resetTextDefaults(ctx);
+
+  // Override the page-2 header date baked into the template.
+  const ap2date = AGENTS_COORDINATES.page2.תאריך;
+  drawWhiteMask(ctx, ap2date.mask);
+  ctx.textAlign = ap2date.align;
+  ctx.font = `bold ${ap2date.fontSize}px ${PDF_FONT.family}`;
+  ctx.fillText(formatHebrewDate(contractData.date), ap2date.x, ap2date.y);
+  ctx.textAlign = 'right';
 
   await drawClientSignature(ctx, AGENTS_COORDINATES.page2.clientSign, clientSignData);
 

@@ -47,32 +47,35 @@ export const PDF_COORDINATES = {
 // Template: /contr/videos/page-{1,2}.jpg
 // Variables on page 1: date, customerName, subject, packagePrice, finalPrice
 // Page 2 has the same boxed sign-fields layout as influencers.
+// Coords below were measured visually against the rasterized templates —
+// see /tmp/measure_text.py and /tmp/bands.jpg for the detection grid.
+// Mask rectangles intentionally extend above the baseline by ~fontSize
+// to cover ascenders, and a few px below for descenders/letter bottoms.
 export const VIDEOS_COORDINATES = {
   page1: {
-    תאריך: { x: 60, y: 250, fontSize: 22, align: 'left' as const, mask: { x: 30, y: 225, w: 220, h: 35 } },
-    לכבוד: { x: 1180, y: 360, fontSize: 28, align: 'right' as const, mask: { x: 700, y: 330, w: 490, h: 45 } },
+    תאריך: { x: 33, y: 247, fontSize: 22, align: 'left' as const, mask: { x: 28, y: 222, w: 130, h: 32 } },
+    לכבוד: { x: 1180, y: 339, fontSize: 28, align: 'right' as const, mask: { x: 700, y: 313, w: 520, h: 32 } },
     title: {
-      // "הפקת סרטוני Ai - עבור <subject>" — rendered as one centered string
-      x: 620, y: 460, fontSize: 28, align: 'center' as const,
-      mask: { x: 250, y: 430, w: 740, h: 50 },
+      // "הפקת סרטוני Ai - עבור <subject>" — centered, bold
+      x: 620, y: 433, fontSize: 28, align: 'center' as const,
+      mask: { x: 250, y: 407, w: 740, h: 32 },
       prefix: 'הפקת סרטוני Ai - עבור '
     },
     packagePrice: {
-      // "עלות החבילה <packagePrice> ₪" right-aligned inside the cost box
-      x: 1180, y: 1005, fontSize: 22, align: 'right' as const,
-      mask: { x: 850, y: 985, w: 340, h: 30 },
+      x: 1180, y: 1069, fontSize: 22, align: 'right' as const,
+      mask: { x: 770, y: 1049, w: 450, h: 26 },
       template: 'עלות החבילה {value} ₪'
     },
     finalPrice: {
-      // "מחיר לאחר הנחה: <finalPrice> ₪ + מע"מ" right-aligned in cost box
-      x: 1180, y: 1045, fontSize: 22, align: 'right' as const,
-      mask: { x: 770, y: 1023, w: 420, h: 32 },
+      x: 1180, y: 1100, fontSize: 22, align: 'right' as const,
+      mask: { x: 770, y: 1080, w: 450, h: 26 },
       template: 'מחיר לאחר הנחה: {value} ₪ + מע״מ'
     }
   },
   page2: {
-    // Page 2 is the same sign-fields layout. Coordinates calibrated for the
-    // videos page-2.jpg specifically (slight offset from influencers page 2).
+    // Header date to override the example value baked into the template.
+    תאריך: { x: 33, y: 247, fontSize: 22, align: 'left' as const, mask: { x: 28, y: 222, w: 130, h: 32 } },
+    // Page 2 is the same sign-fields layout.
     clientSign: {
       תאריך: { x: 1059, y: 460, fontSize: 18 },
       טלפון_איש_קשר: { x: 747, y: 466, fontSize: 18 },
@@ -99,27 +102,32 @@ export const AGENT_PACKAGES = {
   pro_max:  { id: 'pro_max',  label: 'Pro Max'  }
 } as const;
 
+// Coords measured against the rasterized page-1.jpg.
 export const AGENTS_COORDINATES = {
   page1: {
-    תאריך: { x: 60, y: 250, fontSize: 22, align: 'left' as const, mask: { x: 30, y: 225, w: 220, h: 35 } },
-    לכבוד: { x: 1180, y: 360, fontSize: 28, align: 'right' as const, mask: { x: 700, y: 330, w: 490, h: 45 } },
+    תאריך: { x: 36, y: 247, fontSize: 22, align: 'left' as const, mask: { x: 28, y: 222, w: 130, h: 32 } },
+    לכבוד: { x: 1180, y: 339, fontSize: 28, align: 'right' as const, mask: { x: 700, y: 313, w: 520, h: 32 } },
     title: {
       // "הטמעת אייגנט באתר - <websiteName>"
-      x: 620, y: 450, fontSize: 28, align: 'center' as const,
-      mask: { x: 250, y: 420, w: 740, h: 50 },
+      x: 620, y: 401, fontSize: 28, align: 'center' as const,
+      mask: { x: 250, y: 375, w: 740, h: 32 },
       prefix: 'הטמעת אייגנט באתר - '
     },
-    // Package recommendation checkboxes. Coordinates point to the small
-    // square next to each package title. We white-out all four first,
-    // then fill only the recommended one with the brand orange.
+    // Package recommendation checkboxes. Coordinates were measured by detecting
+    // the box outline edges in the template at exactly these positions.
+    // We white-out all four first, then fill only the recommended one in
+    // brand orange so rendering is deterministic regardless of which checkbox
+    // happens to be pre-filled in the rasterized template.
     packages: {
-      basic:    { x: 985, y: 1090, w: 22, h: 22 },
-      pro:      { x: 555, y: 1090, w: 22, h: 22 },
-      advanced: { x: 985, y: 1295, w: 22, h: 22 },
-      pro_max:  { x: 555, y: 1295, w: 22, h: 22 }
+      basic:    { x: 1160, y: 1042, w: 28, h: 27 },
+      pro:      { x: 684,  y: 1042, w: 28, h: 27 },
+      advanced: { x: 1160, y: 1286, w: 28, h: 27 },
+      pro_max:  { x: 684,  y: 1286, w: 28, h: 27 }
     }
   },
   page2: {
+    // Header date to override the example value baked into the template.
+    תאריך: { x: 36, y: 247, fontSize: 22, align: 'left' as const, mask: { x: 28, y: 222, w: 130, h: 32 } },
     // Sign field layout on agents page 2 is at the upper-mid section.
     clientSign: {
       תאריך: { x: 1059, y: 700, fontSize: 18 },
