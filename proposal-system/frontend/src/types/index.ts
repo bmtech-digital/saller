@@ -2,6 +2,7 @@
 export type ProposalStatus = 'draft' | 'sent' | 'signed' | 'void';
 export type DocumentKind = 'unsigned_pdf' | 'signed_pdf';
 export type SendChannel = 'whatsapp' | 'sms' | 'email';
+export type ProjectType = 'influencers' | 'videos' | 'agents';
 
 export interface Customer {
   id: string;
@@ -37,6 +38,7 @@ export interface Proposal {
   total: number;
   terms_text: string | null;
   status: ProposalStatus;
+  project_type: ProjectType;
   client_token: string | null;
   client_token_expires_at: string | null;
   contract_data: ContractData | null;
@@ -150,6 +152,7 @@ export interface Campaign {
   bank_details: string;
   cost: number;
   is_paid: boolean;
+  project_type: ProjectType;
   created_at: string;
   updated_at: string;
 }
@@ -161,8 +164,34 @@ export interface CampaignFormData {
   bank_details: string;
   cost: number;
   is_paid: boolean;
+  project_type: ProjectType;
 }
 
 export interface CustomerWithCampaigns extends Customer {
   campaigns?: Campaign[];
+}
+
+export interface Influencer {
+  id: string;
+  owner_id: string;
+  customer_id: string;
+  full_name: string;
+  phone: string | null;
+  instagram_handle: string | null;
+  payment_amount: number;
+  paid: boolean;
+  paid_at: string | null;
+  receipt_storage_path: string | null;
+  receipt_mime_type: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InfluencerFormData {
+  full_name: string;
+  phone?: string;
+  instagram_handle?: string;
+  payment_amount?: number;
+  notes?: string;
 }

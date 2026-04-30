@@ -109,9 +109,10 @@ class ApiService {
   }
 
   // Proposals
-  async getProposals(params?: { status?: string; search?: string; limit?: number; offset?: number }) {
+  async getProposals(params?: { status?: string; project_type?: string; search?: string; limit?: number; offset?: number }) {
     const searchParams = new URLSearchParams();
     if (params?.status) searchParams.set('status', params.status);
+    if (params?.project_type) searchParams.set('project_type', params.project_type);
     if (params?.search) searchParams.set('search', params.search);
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
@@ -129,6 +130,7 @@ class ApiService {
     proposal_date?: string;
     vat_rate?: number;
     terms_text?: string;
+    project_type?: string;
   }) {
     return this.request('/proposals', {
       method: 'POST',
@@ -260,8 +262,9 @@ class ApiService {
     });
   }
   // Campaigns
-  async getCampaigns(customerId: string) {
-    return this.request(`/campaigns/customer/${customerId}`);
+  async getCampaigns(customerId: string, projectType?: string) {
+    const qs = projectType ? `?project_type=${encodeURIComponent(projectType)}` : '';
+    return this.request(`/campaigns/customer/${customerId}${qs}`);
   }
 
   async createCampaign(customerId: string, data: {
@@ -271,6 +274,7 @@ class ApiService {
     bank_details?: string;
     cost: number;
     is_paid?: boolean;
+    project_type?: string;
   }) {
     return this.request(`/campaigns/customer/${customerId}`, {
       method: 'POST',
@@ -285,6 +289,7 @@ class ApiService {
     bank_details: string;
     cost: number;
     is_paid: boolean;
+    project_type: string;
   }>) {
     return this.request(`/campaigns/${id}`, {
       method: 'PUT',
@@ -296,6 +301,87 @@ class ApiService {
     return this.request(`/campaigns/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  // Influencers
+  async getInfluencers(customerId: string) {
+    return this.request(`/customers/${customerId}/influencers`);
+  }
+
+  async createInfluencer(customerId: string, data: {
+    full_name: string;
+    phone?: string;
+    instagram_handle?: string;
+    payment_amount?: number;
+    notes?: string;
+  }) {
+    return this.request(`/customers/${customerId}/influencers`, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async updateInfluencer(id: string, data: Partial<{
+    full_name: string;
+    phone: string | null;
+    instagram_handle: string | null;
+    payment_amount: number;
+    notes: string | null;
+  }>) {
+    return this.request(`/influencers/${id}`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async deleteInfluencer(id: string) {
+    return this.request(`/influencers/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async setInfluencerPaid(id: string, paid: boolean) {
+    return this.request(`/influencers/${id}/paid`, {
+      method: 'PATCH',
+      body: { paid },
+    });
+  }
+
+  async uploadInfluencerReceipt(id: string, file: File) {
+    const token = this.getToken();
+    const form = new FormData();
+    form.append('file', file);
+    const response = await fetch(`${API_BASE}/influencers/${id}/receipt`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: form,
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'שגיאה בהעלאת קובץ');
+    return data;
+  }
+
+  async getInfluencerReceiptUrl(id: string) {
+    return this.request<{ url: string }>(`/influencers/${id}/receipt`);
+  }
+
+  async deleteInfluencerReceipt(id: string) {
+    return this.request(`/influencers/${id}/receipt`, {
+      method: 'DELETE',
+    });
+  }
+
+  async exportInfluencerReceiptsZip(customerId: string): Promise<Blob> {
+    const token = this.getToken();
+    const response = await fetch(
+      `${API_BASE}/customers/${customerId}/influencers/receipts.zip`,
+      { headers: token ? { Authorization: `Bearer ${token}` } : undefined },
+    );
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || 'שגיאה בייצוא');
+    }
+    return response.blob();
   }
 
   // Error Logs (Admin)

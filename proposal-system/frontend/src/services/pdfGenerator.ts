@@ -133,10 +133,12 @@ export async function generateContractPDF(
   ctx.font = `${dateCoords.fontSize}px ${PDF_FONT.family}`;
   ctx.fillText(formatHebrewDate(contractData.date), dateCoords.x, dateCoords.y);
 
-  // עבור - For
+  // עבור - For (centered)
   const forCoords = PDF_COORDINATES.page1.עבור;
   ctx.font = `${forCoords.fontSize}px ${PDF_FONT.family}`;
-  ctx.fillText(contractData.forText, forCoords.x, forCoords.y);
+  ctx.textAlign = 'center';
+  ctx.fillText(`קמפיין עבור "${contractData.forText}"`, canvas.width / 2, forCoords.y);
+  ctx.textAlign = 'right';
 
   // פלטפורמות - Platforms
   const platformsCoords = PDF_COORDINATES.page1.פלטפורמות;

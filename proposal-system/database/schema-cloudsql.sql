@@ -96,6 +96,13 @@ BEGIN
   END IF;
 END $$;
 
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'project_type') THEN
+    CREATE TYPE project_type AS ENUM ('influencers','videos','agents');
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS proposals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -110,6 +117,7 @@ CREATE TABLE IF NOT EXISTS proposals (
   total NUMERIC(12,2) NOT NULL DEFAULT 0,
   terms_text TEXT,
   status proposal_status NOT NULL DEFAULT 'draft',
+  project_type project_type NOT NULL DEFAULT 'influencers',
   client_token TEXT UNIQUE,
   client_token_expires_at TIMESTAMPTZ,
   contract_data JSONB,
@@ -119,9 +127,14 @@ CREATE TABLE IF NOT EXISTS proposals (
   CONSTRAINT uq_proposals_owner_order UNIQUE (owner_id, order_number)
 );
 
+-- Backfill column on existing deployments
+ALTER TABLE proposals
+  ADD COLUMN IF NOT EXISTS project_type project_type NOT NULL DEFAULT 'influencers';
+
 CREATE INDEX IF NOT EXISTS idx_proposals_owner ON proposals(owner_id);
 CREATE INDEX IF NOT EXISTS idx_proposals_status ON proposals(status);
 CREATE INDEX IF NOT EXISTS idx_proposals_customer ON proposals(customer_id);
+CREATE INDEX IF NOT EXISTS idx_proposals_project_type ON proposals(project_type);
 CREATE INDEX IF NOT EXISTS idx_proposals_client_token ON proposals(client_token);
 
 CREATE TRIGGER trg_proposals_updated

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { supabaseAdmin } from '../utils/supabase.js';
 import { v4 as uuidv4 } from 'uuid';
+import { isProjectType, DEFAULT_PROJECT_TYPE } from '../types/index.js';
 
 const isDevMode = process.env.DEV_MODE === 'true';
 
@@ -12,21 +13,29 @@ export class CampaignsController {
   async getByCustomer(req: Request, res: Response): Promise<void> {
     try {
       const { customerId } = req.params;
+      const projectTypeParam = typeof req.query.project_type === 'string' ? req.query.project_type : undefined;
+      const projectTypeFilter = isProjectType(projectTypeParam) ? projectTypeParam : undefined;
 
       if (isDevMode) {
-        const campaigns = devCampaigns.filter(
-          c => c.customer_id === customerId && c.owner_id === req.user!.id
-        );
+        const campaigns = devCampaigns
+          .filter(c => c.customer_id === customerId && c.owner_id === req.user!.id)
+          .filter(c => !projectTypeFilter || (c.project_type ?? DEFAULT_PROJECT_TYPE) === projectTypeFilter);
         res.json(campaigns);
         return;
       }
 
-      const { data, error } = await supabaseAdmin
+      let query = supabaseAdmin
         .from('campaigns')
         .select('*')
         .eq('customer_id', customerId)
         .eq('owner_id', req.user!.id)
         .order('created_at', { ascending: false });
+
+      if (projectTypeFilter) {
+        query = query.eq('project_type', projectTypeFilter);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         res.status(400).json({ error: error.message });
@@ -44,7 +53,7 @@ export class CampaignsController {
   async create(req: Request, res: Response): Promise<void> {
     try {
       const { customerId } = req.params;
-      const { campaign_name, influencers, invoice_url, bank_details, cost, is_paid } = req.body;
+      const { campaign_name, influencers, invoice_url, bank_details, cost, is_paid, project_type } = req.body;
 
       if (!campaign_name?.trim()) {
         res.status(400).json({ error: 'שם הקמפיין נדרש' });
@@ -59,6 +68,8 @@ export class CampaignsController {
         return;
       }
 
+      const projectType = isProjectType(project_type) ? project_type : DEFAULT_PROJECT_TYPE;
+
       if (isDevMode) {
         const newCampaign = {
           id: uuidv4(),
@@ -70,6 +81,7 @@ export class CampaignsController {
           bank_details: bank_details?.trim() || '',
           cost,
           is_paid: is_paid || false,
+          project_type: projectType,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
@@ -88,7 +100,8 @@ export class CampaignsController {
           invoice_url: invoice_url || null,
           bank_details: bank_details?.trim() || '',
           cost,
-          is_paid: is_paid || false
+          is_paid: is_paid || false,
+          project_type: projectType
         })
         .select()
         .single();
@@ -117,6 +130,9 @@ export class CampaignsController {
       if (req.body.bank_details !== undefined) updateData.bank_details = req.body.bank_details.trim();
       if (req.body.cost !== undefined) updateData.cost = req.body.cost;
       if (req.body.is_paid !== undefined) updateData.is_paid = req.body.is_paid;
+      if (req.body.project_type !== undefined && isProjectType(req.body.project_type)) {
+        updateData.project_type = req.body.project_type;
+      }
 
       if (isDevMode) {
         const index = devCampaigns.findIndex(c => c.id === id && c.owner_id === req.user!.id);

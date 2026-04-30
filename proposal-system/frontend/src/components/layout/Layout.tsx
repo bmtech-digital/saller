@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -8,11 +8,10 @@ import {
   Menu,
   X,
   Bug,
-  ChevronDown,
-  Sparkles
+  ChevronDown
 } from 'lucide-react';
-import { useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
+import { PROJECT_TYPES, type ProjectTypeId } from '../../config/projectTypes';
 
 interface LayoutProps {
   children: ReactNode;
@@ -20,7 +19,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [influencersOpen, setInfluencersOpen] = useState(false);
+  const [openTypeId, setOpenTypeId] = useState<ProjectTypeId | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
@@ -30,15 +29,18 @@ export function Layout({ children }: LayoutProps) {
     navigate('/login');
   };
 
-  // Items under "משפיענים" dropdown
-  const influencersItems = [
-    { path: '/', icon: LayoutDashboard, label: 'ההצעות שלי' },
-    { path: '/proposals/new', icon: FileText, label: 'הצעה חדשה' },
-  ];
+  const currentTypeFromQuery = (() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('type') as ProjectTypeId | null;
+  })();
 
-  const navItems = [
-    { path: '/customers', icon: Users, label: 'לקוחות' },
-  ];
+  const isProposalRoute = location.pathname === '/' || location.pathname === '/proposals/new';
+
+  const isActiveTypeDropdown = (typeId: ProjectTypeId) =>
+    isProposalRoute && currentTypeFromQuery === typeId;
+
+  const isActiveSubItem = (typeId: ProjectTypeId, path: string) =>
+    location.pathname === path && currentTypeFromQuery === typeId;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -79,66 +81,74 @@ export function Layout({ children }: LayoutProps) {
         </div>
 
         <nav className="px-4 space-y-1">
-          {/* משפיענים Dropdown */}
-          <div>
-            <button
-              onClick={() => setInfluencersOpen(!influencersOpen)}
-              className={`flex items-center justify-between w-full px-4 py-3 rounded-lg transition-colors ${
-                influencersItems.some(item => location.pathname === item.path)
-                  ? 'bg-dark-800 text-white'
-                  : 'text-dark-300 hover:bg-dark-800 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Sparkles className="w-5 h-5" />
-                <span>משפיענים</span>
-              </div>
-              <ChevronDown className={`w-4 h-4 transition-transform ${influencersOpen ? 'rotate-180' : ''}`} />
-            </button>
+          {/* One dropdown per project type */}
+          {PROJECT_TYPES.map((type) => {
+            const TypeIcon = type.icon;
+            const isOpen = openTypeId === type.id;
+            const isActive = isActiveTypeDropdown(type.id);
 
-            {influencersOpen && (
-              <div className="mt-1 mr-4 space-y-1">
-                {influencersItems.map((item) => {
-                  const isActive = location.pathname === item.path;
-                  return (
+            return (
+              <div key={type.id}>
+                <button
+                  onClick={() => setOpenTypeId(isOpen ? null : type.id)}
+                  className={`flex items-center justify-between w-full px-4 py-3 rounded-lg transition-colors ${
+                    isActive
+                      ? 'bg-dark-800 text-white'
+                      : 'text-dark-300 hover:bg-dark-800 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <TypeIcon className="w-5 h-5" />
+                    <span>{type.label}</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isOpen && (
+                  <div className="mt-1 mr-4 space-y-1">
                     <Link
-                      key={item.path}
-                      to={item.path}
+                      to={`/?type=${type.id}`}
                       onClick={() => setSidebarOpen(false)}
                       className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
-                        isActive
+                        isActiveSubItem(type.id, '/')
                           ? 'bg-primary-500 text-white'
                           : 'text-dark-400 hover:bg-dark-800 hover:text-white'
                       }`}
                     >
-                      <item.icon className="w-4 h-4" />
-                      <span className="text-sm">{item.label}</span>
+                      <LayoutDashboard className="w-4 h-4" />
+                      <span className="text-sm">ההצעות שלי</span>
                     </Link>
-                  );
-                })}
+                    <Link
+                      to={`/proposals/new?type=${type.id}`}
+                      onClick={() => setSidebarOpen(false)}
+                      className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
+                        isActiveSubItem(type.id, '/proposals/new')
+                          ? 'bg-primary-500 text-white'
+                          : 'text-dark-400 hover:bg-dark-800 hover:text-white'
+                      }`}
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span className="text-sm">הצעה חדשה</span>
+                    </Link>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-
-          {/* Other nav items */}
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-primary-500 text-white'
-                    : 'text-dark-300 hover:bg-dark-800 hover:text-white'
-                }`}
-              >
-                <item.icon className="w-5 h-5" />
-                <span>{item.label}</span>
-              </Link>
             );
           })}
+
+          {/* Customers (single entry, filter happens on the page) */}
+          <Link
+            to="/customers"
+            onClick={() => setSidebarOpen(false)}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              location.pathname === '/customers'
+                ? 'bg-primary-500 text-white'
+                : 'text-dark-300 hover:bg-dark-800 hover:text-white'
+            }`}
+          >
+            <Users className="w-5 h-5" />
+            <span>לקוחות</span>
+          </Link>
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-dark-800">

@@ -147,6 +147,37 @@ chmod +x deploy.sh
 
 ---
 
+## Database Migrations
+
+Schema changes are NOT applied automatically by `deploy.sh`. Run them on the Cloud SQL DB before deploying code that depends on them.
+
+The SQL files in `database/` are idempotent (use `IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS`), so re-running them is safe.
+
+### Apply via Cloud SQL Proxy (recommended)
+```bash
+# 1. Start the proxy in another terminal
+cloud-sql-proxy bemtech-478413:me-west1:proposal-db
+
+# 2. Connect with psql and run the file(s)
+psql "host=localhost user=app_user dbname=proposal_system" \
+  -f database/schema-cloudsql.sql
+
+psql "host=localhost user=app_user dbname=proposal_system" \
+  -f database/campaigns.sql
+```
+
+### Apply via Google Cloud Console
+1. Open the [Cloud SQL instance](https://console.cloud.google.com/sql/instances/proposal-db/overview).
+2. Click **Open Cloud Shell** → connect with `gcloud sql connect proposal-db --user=app_user --database=proposal_system`.
+3. Paste the relevant SQL or `\i` the file.
+
+### Order of operations for a feature with a migration
+1. Apply the migration on the live DB (idempotent — safe to run before the new code is live since the columns just get added).
+2. Deploy backend (`./deploy.sh` or just the backend portion).
+3. Deploy frontend.
+
+---
+
 ## Useful Commands
 
 ### View Logs

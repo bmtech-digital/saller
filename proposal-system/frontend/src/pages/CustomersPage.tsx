@@ -1,6 +1,6 @@
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment, useRef } from 'react';
 import Swal from 'sweetalert2';
-import { Plus, Search, Edit2, Trash2, Phone, Mail, ChevronDown, ChevronUp, FileUp, Eye } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Phone, Mail, ChevronDown, ChevronUp, FileUp, Eye, Users } from 'lucide-react';
 import { api } from '../services/api';
 import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
@@ -8,9 +8,16 @@ import { Card, CardBody } from '../components/ui/Card';
 import { Modal } from '../components/ui/Modal';
 import { CustomerForm } from '../components/forms/CustomerForm';
 import { CampaignForm } from '../components/forms/CampaignForm';
+import { InfluencersModal } from '../components/InfluencersModal';
 import { Loading } from '../components/ui/Loading';
 import { useToast } from '../components/ui/Toast';
 import type { Customer, CustomerFormData, Campaign, CampaignFormData } from '../types';
+import {
+  PROJECT_TYPES,
+  getProjectTypeLabel,
+  type ProjectTypeId,
+  DEFAULT_PROJECT_TYPE
+} from '../config/projectTypes';
 
 export function CustomersPage() {
   const { showToast } = useToast();
@@ -26,6 +33,27 @@ export function CustomersPage() {
   const [expandedCustomerId, setExpandedCustomerId] = useState<string | null>(null);
   const [campaigns, setCampaigns] = useState<Record<string, Campaign[]>>({});
   const [isSavingCampaign, setIsSavingCampaign] = useState(false);
+
+  // Influencers modal
+  const [showInfluencersModal, setShowInfluencersModal] = useState(false);
+  const [selectedCustomerForInfluencers, setSelectedCustomerForInfluencers] = useState<Customer | null>(null);
+
+  // Project type filter ('all' shows everyone)
+  const [typeFilter, setTypeFilter] = useState<ProjectTypeId | 'all'>('all');
+
+  // Hidden file input for one-shot invoice upload
+  const invoiceUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const pendingInvoiceUploadRef = useRef<{ campaignId: string; customerId: string } | null>(null);
+
+  const openInfluencersModal = (customer: Customer) => {
+    setSelectedCustomerForInfluencers(customer);
+    setShowInfluencersModal(true);
+  };
+
+  const closeInfluencersModal = () => {
+    setShowInfluencersModal(false);
+    setSelectedCustomerForInfluencers(null);
+  };
 
   useEffect(() => {
     loadCustomers();
@@ -203,7 +231,8 @@ export function CustomersPage() {
         invoice_url: invoiceUrl,
         bank_details: data.bank_details,
         cost: data.cost,
-        is_paid: data.is_paid
+        is_paid: data.is_paid,
+        project_type: data.project_type
       }) as Campaign;
 
       setCampaigns(prev => ({
@@ -241,6 +270,65 @@ export function CustomersPage() {
 
   const getCustomerCampaigns = (customerId: string): Campaign[] => {
     return campaigns[customerId] || [];
+  };
+
+  const getCustomerProjectTypes = (customerId: string): ProjectTypeId[] => {
+    const seen = new Set<ProjectTypeId>();
+    for (const c of getCustomerCampaigns(customerId)) {
+      seen.add((c.project_type ?? DEFAULT_PROJECT_TYPE) as ProjectTypeId);
+    }
+    return Array.from(seen);
+  };
+
+  const getCustomerProjectTypesLabel = (customerId: string): string => {
+    const ids = getCustomerProjectTypes(customerId);
+    if (ids.length === 0) return '—';
+    return ids.map(id => getProjectTypeLabel(id)).join(', ');
+  };
+
+  // Filter customers shown in the table based on selected project type
+  const visibleCustomers = customers.filter((c) => {
+    if (typeFilter === 'all') return true;
+    return getCustomerProjectTypes(c.id).includes(typeFilter);
+  });
+
+  const triggerInvoiceUpload = (campaign: Campaign, customerId: string) => {
+    pendingInvoiceUploadRef.current = { campaignId: campaign.id, customerId };
+    invoiceUploadInputRef.current?.click();
+  };
+
+  const handleInvoiceFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const pending = pendingInvoiceUploadRef.current;
+    // reset the input so the same file can be re-picked later
+    if (invoiceUploadInputRef.current) invoiceUploadInputRef.current.value = '';
+    if (!file || !pending) return;
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+      showToast('error', 'יש להעלות תמונה או PDF בלבד');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('error', 'גודל הקובץ חייב להיות עד 5MB');
+      return;
+    }
+
+    try {
+      const dataUrl = await fileToBase64(file);
+      const updated = await api.updateCampaign(pending.campaignId, { invoice_url: dataUrl }) as Campaign;
+      setCampaigns(prev => ({
+        ...prev,
+        [pending.customerId]: (prev[pending.customerId] || []).map(c =>
+          c.id === pending.campaignId ? { ...c, ...updated } : c
+        )
+      }));
+      showToast('success', 'החשבונית הועלתה בהצלחה');
+    } catch (err) {
+      showToast('error', 'שגיאה בהעלאת החשבונית');
+    } finally {
+      pendingInvoiceUploadRef.current = null;
+    }
   };
 
   const loadCampaigns = async (customerId: string) => {
@@ -300,9 +388,9 @@ export function CustomersPage() {
           </Button>
         </div>
 
-        {/* Search */}
+        {/* Search + Type Filter */}
         <Card>
-          <CardBody className="p-4">
+          <CardBody className="p-4 space-y-4">
             <div className="relative">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400" />
               <input
@@ -313,6 +401,37 @@ export function CustomersPage() {
                 className="w-full pr-10 pl-4 py-2.5 border border-dark-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-dark-500 ml-2">סוג פרוייקט:</span>
+              <button
+                onClick={() => setTypeFilter('all')}
+                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                  typeFilter === 'all'
+                    ? 'bg-primary-500 text-white'
+                    : 'bg-dark-100 text-dark-700 hover:bg-dark-200'
+                }`}
+              >
+                הכל
+              </button>
+              {PROJECT_TYPES.map((t) => {
+                const Icon = t.icon;
+                const active = typeFilter === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setTypeFilter(t.id)}
+                    className={`px-3 py-1.5 text-sm rounded-lg transition-colors flex items-center gap-1.5 ${
+                      active
+                        ? 'bg-primary-500 text-white'
+                        : 'bg-dark-100 text-dark-700 hover:bg-dark-200'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
           </CardBody>
         </Card>
 
@@ -322,10 +441,14 @@ export function CustomersPage() {
             <CardBody className="py-12">
               <Loading text="טוען לקוחות..." />
             </CardBody>
-          ) : customers.length === 0 ? (
+          ) : visibleCustomers.length === 0 ? (
             <CardBody className="py-12 text-center">
               <p className="text-dark-500 mb-4">
-                {searchQuery ? 'לא נמצאו לקוחות התואמים לחיפוש' : 'אין לקוחות עדיין'}
+                {searchQuery
+                  ? 'לא נמצאו לקוחות התואמים לחיפוש'
+                  : typeFilter !== 'all'
+                    ? `אין לקוחות עם פרוייקט מסוג "${getProjectTypeLabel(typeFilter)}"`
+                    : 'אין לקוחות עדיין'}
               </p>
               {!searchQuery && (
                 <Button onClick={() => setShowModal(true)}>
@@ -350,7 +473,7 @@ export function CustomersPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-dark-200">
-                    {customers.map((customer) => {
+                    {visibleCustomers.map((customer) => {
                       const customerCampaigns = getCustomerCampaigns(customer.id);
                       const isExpanded = expandedCustomerId === customer.id;
 
@@ -370,7 +493,7 @@ export function CustomersPage() {
                               <span dir="ltr">{customer.email}</span>
                             </td>
                             <td className="px-6 py-4 text-dark-600">
-                              משפיענים
+                              {getCustomerProjectTypesLabel(customer.id)}
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-2">
@@ -395,6 +518,14 @@ export function CustomersPage() {
                                 >
                                   <FileUp className="w-4 h-4" />
                                   העלאת פרטים
+                                </button>
+                                <button
+                                  onClick={() => openInfluencersModal(customer)}
+                                  className="px-3 py-1.5 text-sm bg-dark-100 text-dark-700 rounded-lg hover:bg-dark-200 transition-colors flex items-center gap-1"
+                                  title="משפיענים"
+                                >
+                                  <Users className="w-4 h-4" />
+                                  משפיענים
                                 </button>
                                 {customerCampaigns.length > 0 && (
                                   <button
@@ -449,7 +580,14 @@ export function CustomersPage() {
                                                 קישור
                                               </button>
                                             ) : (
-                                              <span className="text-dark-400">-</span>
+                                              <button
+                                                onClick={() => triggerInvoiceUpload(campaign, customer.id)}
+                                                className="px-2.5 py-1 text-xs bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors flex items-center gap-1"
+                                                title="העלאת חשבונית"
+                                              >
+                                                <FileUp className="w-3.5 h-3.5" />
+                                                העלאת חשבונית
+                                              </button>
                                             )}
                                           </td>
                                           <td className="px-4 py-3 text-dark-600 text-sm">
@@ -493,7 +631,7 @@ export function CustomersPage() {
 
               {/* Mobile Cards */}
               <div className="md:hidden divide-y divide-dark-200">
-                {customers.map((customer) => {
+                {visibleCustomers.map((customer) => {
                   const customerCampaigns = getCustomerCampaigns(customer.id);
                   const isExpanded = expandedCustomerId === customer.id;
 
@@ -547,6 +685,13 @@ export function CustomersPage() {
                           <FileUp className="w-4 h-4" />
                           העלאת פרטים
                         </button>
+                        <button
+                          onClick={() => openInfluencersModal(customer)}
+                          className="flex-1 px-3 py-2 text-sm bg-dark-100 text-dark-700 rounded-lg hover:bg-dark-200 transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Users className="w-4 h-4" />
+                          משפיענים
+                        </button>
                         {customerCampaigns.length > 0 && (
                           <button
                             onClick={() => toggleExpand(customer.id)}
@@ -592,13 +737,21 @@ export function CustomersPage() {
                                 {campaign.bank_details && (
                                   <p><span className="text-dark-500">פרטי חשבון:</span> {campaign.bank_details}</p>
                                 )}
-                                {campaign.invoice_url && (
+                                {campaign.invoice_url ? (
                                   <button
                                     onClick={() => openInvoice(campaign.invoice_url!)}
                                     className="text-primary-600 hover:text-primary-700 flex items-center gap-1"
                                   >
                                     <Eye className="w-4 h-4" />
                                     צפה בחשבונית
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => triggerInvoiceUpload(campaign, customer.id)}
+                                    className="text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                                  >
+                                    <FileUp className="w-4 h-4" />
+                                    העלאת חשבונית
                                   </button>
                                 )}
                               </div>
@@ -646,6 +799,7 @@ export function CustomersPage() {
       >
         <div className="p-6">
           <CampaignForm
+            initialData={typeFilter !== 'all' ? { project_type: typeFilter } : undefined}
             onSubmit={handleCreateCampaign}
             onCancel={closeCampaignModal}
             submitLabel="שמור"
@@ -653,6 +807,22 @@ export function CustomersPage() {
           />
         </div>
       </Modal>
+
+      {/* Influencers Modal */}
+      <InfluencersModal
+        customer={selectedCustomerForInfluencers}
+        isOpen={showInfluencersModal}
+        onClose={closeInfluencersModal}
+      />
+
+      {/* Hidden file input for one-shot invoice upload */}
+      <input
+        ref={invoiceUploadInputRef}
+        type="file"
+        accept="image/*,.pdf"
+        className="hidden"
+        onChange={handleInvoiceFileSelected}
+      />
     </Layout>
   );
 }

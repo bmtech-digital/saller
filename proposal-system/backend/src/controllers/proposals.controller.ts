@@ -12,6 +12,7 @@ import type {
   SendChannel,
   ProposalWithDetails
 } from '../types/index.js';
+import { isProjectType, DEFAULT_PROJECT_TYPE } from '../types/index.js';
 
 const isDevMode = process.env.DEV_MODE === 'true';
 
@@ -24,10 +25,14 @@ export class ProposalsController {
   // Get all proposals for dashboard
   async getAll(req: Request, res: Response): Promise<void> {
     try {
+      const projectTypeParam = typeof req.query.project_type === 'string' ? req.query.project_type : undefined;
+      const projectTypeFilter = isProjectType(projectTypeParam) ? projectTypeParam : undefined;
+
       // Dev mode
       if (isDevMode) {
         const userProposals = devProposals
           .filter(p => p.owner_id === req.user!.id)
+          .filter(p => !projectTypeFilter || (p.project_type ?? DEFAULT_PROJECT_TYPE) === projectTypeFilter)
           .map(p => ({
             ...p,
             customer: devCustomers.find(c => c.id === p.customer_id)
@@ -50,6 +55,10 @@ export class ProposalsController {
 
       if (status && status !== 'all') {
         query = query.eq('status', status);
+      }
+
+      if (projectTypeFilter) {
+        query = query.eq('project_type', projectTypeFilter);
       }
 
       const { data, error, count } = await query;
@@ -144,6 +153,8 @@ export class ProposalsController {
         return;
       }
 
+      const projectType = isProjectType(body.project_type) ? body.project_type : DEFAULT_PROJECT_TYPE;
+
       // Dev mode
       if (isDevMode) {
         const customer = devCustomers.find(c => c.id === body.customer_id && c.owner_id === req.user!.id);
@@ -160,6 +171,7 @@ export class ProposalsController {
           vat_rate: body.vat_rate ?? 0.17,
           terms_text: body.terms_text ?? DEFAULT_TERMS_TEXT,
           status: 'draft',
+          project_type: projectType,
           subtotal: 0,
           vat_amount: 0,
           total: 0,
@@ -192,7 +204,8 @@ export class ProposalsController {
           proposal_date: body.proposal_date || new Date().toISOString().split('T')[0],
           vat_rate: body.vat_rate ?? 0.17,
           terms_text: body.terms_text ?? DEFAULT_TERMS_TEXT,
-          status: 'draft'
+          status: 'draft',
+          project_type: projectType
         })
         .select()
         .single();

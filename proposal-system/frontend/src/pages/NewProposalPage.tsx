@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Search, UserPlus, Check } from 'lucide-react';
 import { api } from '../services/api';
 import { Layout } from '../components/layout/Layout';
@@ -11,10 +11,14 @@ import { CustomerForm } from '../components/forms/CustomerForm';
 import { Loading } from '../components/ui/Loading';
 import { useToast } from '../components/ui/Toast';
 import type { Customer, CustomerFormData } from '../types';
+import { isProjectType, getProjectTypeLabel, DEFAULT_PROJECT_TYPE } from '../config/projectTypes';
 
 export function NewProposalPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const [searchParams] = useSearchParams();
+  const typeParam = searchParams.get('type');
+  const projectType = isProjectType(typeParam) ? typeParam : DEFAULT_PROJECT_TYPE;
   const [step, setStep] = useState(1);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -90,6 +94,7 @@ export function NewProposalPage() {
       const proposal = await api.createProposal({
         customer_id: selectedCustomer.id,
         proposal_date: proposalDate,
+        project_type: projectType,
       }) as { id: string };
 
       showToast('success', 'ההצעה נוצרה בהצלחה');
@@ -113,7 +118,9 @@ export function NewProposalPage() {
             <ArrowLeft className="w-6 h-6" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-dark-900">יצירת הצעה חדשה</h1>
+            <h1 className="text-2xl font-bold text-dark-900">
+              יצירת הצעה חדשה — {getProjectTypeLabel(projectType)}
+            </h1>
             <p className="text-dark-500">בחר לקוח והזן את פרטי ההצעה</p>
           </div>
         </div>

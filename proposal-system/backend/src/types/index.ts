@@ -2,6 +2,12 @@
 export type ProposalStatus = 'draft' | 'sent' | 'signed' | 'void';
 export type DocumentKind = 'unsigned_pdf' | 'signed_pdf';
 export type SendChannel = 'whatsapp' | 'sms' | 'email';
+export type ProjectType = 'influencers' | 'videos' | 'agents';
+export const PROJECT_TYPES: ProjectType[] = ['influencers', 'videos', 'agents'];
+export const DEFAULT_PROJECT_TYPE: ProjectType = 'influencers';
+export function isProjectType(value: unknown): value is ProjectType {
+  return typeof value === 'string' && (PROJECT_TYPES as string[]).includes(value);
+}
 
 export interface Customer {
   id: string;
@@ -28,6 +34,7 @@ export interface Proposal {
   total: number;
   terms_text: string | null;
   status: ProposalStatus;
+  project_type: ProjectType;
   client_token: string | null;
   client_token_expires_at: string | null;
   created_at: string;
@@ -99,6 +106,7 @@ export interface CreateProposalRequest {
   proposal_date?: string;
   vat_rate?: number;
   terms_text?: string;
+  project_type?: ProjectType;
 }
 
 export interface CreateBlockRequest {
@@ -130,6 +138,40 @@ export interface ProposalWithDetails extends Proposal {
   blocks: (ProposalBlock & { text_items: BlockTextItem[] })[];
   signature?: Signature;
   documents?: Document[];
+}
+
+// Influencer types
+export interface Influencer {
+  id: string;
+  owner_id: string;
+  customer_id: string;
+  full_name: string;
+  phone: string | null;
+  instagram_handle: string | null;
+  payment_amount: number;
+  paid: boolean;
+  paid_at: string | null;
+  receipt_storage_path: string | null;
+  receipt_mime_type: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateInfluencerRequest {
+  full_name: string;
+  phone?: string;
+  instagram_handle?: string;
+  payment_amount?: number;
+  notes?: string;
+}
+
+export interface UpdateInfluencerRequest {
+  full_name?: string;
+  phone?: string | null;
+  instagram_handle?: string | null;
+  payment_amount?: number;
+  notes?: string | null;
 }
 
 // Auth types

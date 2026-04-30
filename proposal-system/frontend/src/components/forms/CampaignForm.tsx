@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Upload, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 import type { CampaignFormData } from '../../types';
+import { PROJECT_TYPES, DEFAULT_PROJECT_TYPE, type ProjectTypeId } from '../../config/projectTypes';
 
 interface CampaignFormProps {
   initialData?: Partial<CampaignFormData>;
@@ -18,7 +19,8 @@ export function CampaignForm({ initialData, onSubmit, onCancel, submitLabel = '�
     invoice_file: null,
     bank_details: initialData?.bank_details || '',
     cost: initialData?.cost || 0,
-    is_paid: initialData?.is_paid || false
+    is_paid: initialData?.is_paid || false,
+    project_type: initialData?.project_type || DEFAULT_PROJECT_TYPE
   });
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -87,6 +89,24 @@ export function CampaignForm({ initialData, onSubmit, onCancel, submitLabel = '�
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Project Type */}
+      <div>
+        <label className="block text-sm font-medium text-dark-700 mb-1.5">
+          סוג פרוייקט <span className="text-red-500">*</span>
+        </label>
+        <select
+          value={formData.project_type}
+          onChange={(e) =>
+            setFormData(prev => ({ ...prev, project_type: e.target.value as ProjectTypeId }))
+          }
+          className="w-full px-4 py-2.5 border border-dark-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          {PROJECT_TYPES.map((t) => (
+            <option key={t.id} value={t.id}>{t.label}</option>
+          ))}
+        </select>
+      </div>
+
       {/* Campaign Name */}
       <div>
         <label className="block text-sm font-medium text-dark-700 mb-1.5">

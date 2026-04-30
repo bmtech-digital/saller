@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { Plus, Download, Edit2, Trash2, Search, Filter } from 'lucide-react';
 import { api } from '../services/api';
@@ -12,10 +12,14 @@ import { StatusBadge } from '../components/ui/StatusBadge';
 import { Loading } from '../components/ui/Loading';
 import { useToast } from '../components/ui/Toast';
 import type { Proposal, PaginatedResponse, ProposalStatus } from '../types';
+import { isProjectType, getProjectTypeLabel } from '../config/projectTypes';
 
 export function DashboardPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const [searchParams] = useSearchParams();
+  const typeParam = searchParams.get('type');
+  const projectType = isProjectType(typeParam) ? typeParam : undefined;
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -23,7 +27,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     loadProposals();
-  }, [statusFilter]);
+  }, [statusFilter, projectType]);
 
   // Auto-refresh proposals every 10 seconds to catch status updates (e.g., when client signs)
   useEffect(() => {
@@ -32,13 +36,14 @@ export function DashboardPage() {
     }, 10000); // 10 seconds
 
     return () => clearInterval(interval);
-  }, [statusFilter]);
+  }, [statusFilter, projectType]);
 
   const loadProposals = async (silent = false) => {
     try {
       if (!silent) setIsLoading(true);
       const response = await api.getProposals({
         status: statusFilter !== 'all' ? statusFilter : undefined,
+        project_type: projectType,
       }) as PaginatedResponse<Proposal>;
       setProposals(response.data);
     } catch (error) {
@@ -131,10 +136,12 @@ export function DashboardPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-dark-900">הצעות מחיר</h1>
+            <h1 className="text-2xl font-bold text-dark-900">
+              הצעות מחיר{projectType ? ` — ${getProjectTypeLabel(projectType)}` : ''}
+            </h1>
             <p className="text-dark-500 mt-1">ניהול וצפייה בהצעות המחיר</p>
           </div>
-          <Link to="/proposals/new">
+          <Link to={projectType ? `/proposals/new?type=${projectType}` : '/proposals/new'}>
             <Button size="lg" className="w-full sm:w-auto">
               <Plus className="w-5 h-5" />
               הצעה חדשה
@@ -183,7 +190,7 @@ export function DashboardPage() {
           ) : filteredProposals.length === 0 ? (
             <CardBody className="py-12 text-center">
               <p className="text-dark-500">לא נמצאו הצעות</p>
-              <Link to="/proposals/new">
+              <Link to={projectType ? `/proposals/new?type=${projectType}` : '/proposals/new'}>
                 <Button variant="outline" className="mt-4">
                   <Plus className="w-5 h-5" />
                   צור הצעה חדשה
