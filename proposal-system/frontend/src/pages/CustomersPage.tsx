@@ -11,7 +11,7 @@ import { CampaignForm } from '../components/forms/CampaignForm';
 import { InfluencersModal } from '../components/InfluencersModal';
 import { Loading } from '../components/ui/Loading';
 import { useToast } from '../components/ui/Toast';
-import type { Customer, CustomerFormData, Campaign, CampaignFormData } from '../types';
+import type { Customer, CustomerFormData, Campaign, CampaignFormData, Proposal, PaginatedResponse } from '../types';
 import {
   PROJECT_TYPES,
   getProjectTypeLabel,
@@ -40,6 +40,11 @@ export function CustomersPage() {
 
   // Project type filter ('all' shows everyone)
   const [typeFilter, setTypeFilter] = useState<ProjectTypeId | 'all'>('all');
+
+  // Proposal project_types grouped by customer_id (so the filter / type-label
+  // also reflects customers who have proposals but no campaigns yet — including
+  // every customer that existed before the project_type column was added).
+  const [proposalTypesByCustomer, setProposalTypesByCustomer] = useState<Record<string, ProjectTypeId[]>>({});
 
   // Hidden file input for one-shot invoice upload
   const invoiceUploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -76,10 +81,12 @@ export function CustomersPage() {
       setIsLoading(true);
       const data = await api.getCustomers() as Customer[];
       setCustomers(data);
-      // Load campaigns for all customers
+      // Load campaigns + proposals for all customers (proposals feed into the type filter
+      // so customers without any campaigns yet still appear under their proposals' types).
       for (const customer of data) {
         loadCampaigns(customer.id);
       }
+      loadAllProposalTypes();
     } catch (error) {
       showToast('error', 'שגיאה בטעינת לקוחות');
     } finally {
@@ -91,6 +98,8 @@ export function CustomersPage() {
     try {
       const data = await api.searchCustomers(query) as Customer[];
       setCustomers(data);
+      // Make sure proposal types are loaded so the filter still applies in search results
+      if (Object.keys(proposalTypesByCustomer).length === 0) loadAllProposalTypes();
     } catch (error) {
       showToast('error', 'שגיאה בחיפוש');
     }
@@ -277,6 +286,9 @@ export function CustomersPage() {
     for (const c of getCustomerCampaigns(customerId)) {
       seen.add((c.project_type ?? DEFAULT_PROJECT_TYPE) as ProjectTypeId);
     }
+    for (const t of proposalTypesByCustomer[customerId] || []) {
+      seen.add(t);
+    }
     return Array.from(seen);
   };
 
@@ -337,6 +349,24 @@ export function CustomersPage() {
       setCampaigns(prev => ({ ...prev, [customerId]: data }));
     } catch (err) {
       console.error('Load campaigns error:', err);
+    }
+  };
+
+  // One shot fetch of all proposals so we can group their project_types by customer.
+  // The proposals API doesn't expose a customer_id filter today, so fetching all and
+  // grouping locally is the simplest path.
+  const loadAllProposalTypes = async () => {
+    try {
+      const res = await api.getProposals({ limit: 500 }) as PaginatedResponse<Proposal>;
+      const grouped: Record<string, ProjectTypeId[]> = {};
+      for (const p of res.data || []) {
+        const type = (p.project_type ?? DEFAULT_PROJECT_TYPE) as ProjectTypeId;
+        if (!grouped[p.customer_id]) grouped[p.customer_id] = [];
+        if (!grouped[p.customer_id].includes(type)) grouped[p.customer_id].push(type);
+      }
+      setProposalTypesByCustomer(grouped);
+    } catch (err) {
+      console.error('Load proposals for types error:', err);
     }
   };
 
