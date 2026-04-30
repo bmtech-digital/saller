@@ -138,10 +138,15 @@ async function renderInfluencersPDF(
   resetTextDefaults(ctx);
 
   const wyg = PDF_COORDINATES.page2.מה_מקבלים;
-  ctx.font = `${wyg.fontSize}px ${PDF_FONT.family}`;
-  const lines = (contractData.whatYouGet ?? '').split('\n');
-  const lineHeight = wyg.fontSize * 1.5;
-  lines.forEach((line, i) => ctx.fillText(line, wyg.x, wyg.y + i * lineHeight));
+  // Auto-shrink for multi-line lists so they don't crash into the cost rectangle below.
+  const wygLines = (contractData.whatYouGet ?? '').split('\n');
+  const wygFont =
+    wygLines.length >= 5 ? wyg.fontSize * 0.65 :
+    wygLines.length >= 3 ? wyg.fontSize * 0.7 :
+    wyg.fontSize;
+  const wygLineHeight = wygFont * 1.15;
+  ctx.font = `${wygFont}px ${PDF_FONT.family}`;
+  wygLines.forEach((line, i) => ctx.fillText(line, wyg.x, wyg.y + i * wygLineHeight));
 
   const cost = PDF_COORDINATES.page2.עלות;
   ctx.font = `bold ${cost.fontSize}px ${PDF_FONT.family}`;

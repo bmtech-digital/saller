@@ -2,6 +2,32 @@
 
 All notable changes are documented here.
 
+## 2026-04-30 — Per-type proposal templates (videos, agents)
+
+Each project type now renders its own proposal PDF using its own template image and field set.
+
+### Added
+- Templates rasterized from the brand reference PDFs at 150dpi:
+  - `frontend/public/contr/videos/page-{1,2}.jpg`
+  - `frontend/public/contr/agents/page-{1,2}.jpg`
+- New entries in `frontend/src/config/pdfCoordinates.ts`: `VIDEOS_COORDINATES`, `AGENTS_COORDINATES`, `AGENT_PACKAGES`, `BRAND_ORANGE`. Each variable position carries a `mask` rectangle used to white-out the example value baked into the rasterized template before drawing the new value on top.
+- Three render functions in `pdfGenerator.ts` (`renderInfluencersPDF`, `renderVideosPDF`, `renderAgentsPDF`); the public `generateContractPDF` / `openContractPDF` / `downloadContractPDF` / `getContractPDFBase64` now accept a `projectType` argument and dispatch.
+- `ContractForm` branches on `projectType`:
+  - Influencers: unchanged (forText, platforms, whatYouGet, cost).
+  - Videos: subject, packagePrice (default 6000), finalPrice (default 3800).
+  - Agents: websiteName + a 4-button recommended-package selector.
+- `ContractData` widened with optional per-type fields. No DB migration — `proposals.contract_data` is JSONB.
+
+### Changed
+- `ProposalEditorPage` reads `proposal.project_type` and threads it into both `ContractForm` and the PDF/send calls. Falls back to `'influencers'` when missing.
+- `DashboardPage.handleDownloadPDF` reads `project_type` from the loaded proposal and forwards it to `openContractPDF`.
+
+### Notes
+- Coordinates are first-pass estimates from the rasterized templates. If anything looks misaligned in the rendered PDF, tweak the `mask` and `(x,y)` values in `pdfCoordinates.ts` — no other code changes needed.
+- The agents template's package boxes (Basic / Advanced / Pro / Pro Max) are part of the image. We white-out all four checkbox squares and re-draw the outline, then fill only the recommended one with brand orange (`#F39200`). This keeps rendering deterministic regardless of which package the rasterized template happens to have pre-checked.
+
+---
+
 ## 2026-04-30 — Project types
 
 Proposals and campaigns are now scoped by **project type**: `influencers`, `videos`, `agents` (default `influencers`). Types are defined once in `frontend/src/config/projectTypes.ts`.

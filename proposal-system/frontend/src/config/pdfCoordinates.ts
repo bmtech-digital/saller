@@ -49,24 +49,24 @@ export const PDF_COORDINATES = {
 // Page 2 has the same boxed sign-fields layout as influencers.
 export const VIDEOS_COORDINATES = {
   page1: {
-    תאריך: { x: 60, y: 215, fontSize: 22, align: 'left' as const, mask: { x: 30, y: 195, w: 220, h: 30 } },
-    לכבוד: { x: 1180, y: 320, fontSize: 28, align: 'right' as const, mask: { x: 700, y: 295, w: 490, h: 38 } },
+    תאריך: { x: 60, y: 250, fontSize: 22, align: 'left' as const, mask: { x: 30, y: 225, w: 220, h: 35 } },
+    לכבוד: { x: 1180, y: 360, fontSize: 28, align: 'right' as const, mask: { x: 700, y: 330, w: 490, h: 45 } },
     title: {
       // "הפקת סרטוני Ai - עבור <subject>" — rendered as one centered string
-      x: 620, y: 425, fontSize: 28, align: 'center' as const,
-      mask: { x: 280, y: 395, w: 680, h: 45 },
+      x: 620, y: 460, fontSize: 28, align: 'center' as const,
+      mask: { x: 250, y: 430, w: 740, h: 50 },
       prefix: 'הפקת סרטוני Ai - עבור '
     },
     packagePrice: {
       // "עלות החבילה <packagePrice> ₪" right-aligned inside the cost box
-      x: 1180, y: 985, fontSize: 22, align: 'right' as const,
-      mask: { x: 850, y: 962, w: 340, h: 30 },
+      x: 1180, y: 1005, fontSize: 22, align: 'right' as const,
+      mask: { x: 850, y: 985, w: 340, h: 30 },
       template: 'עלות החבילה {value} ₪'
     },
     finalPrice: {
       // "מחיר לאחר הנחה: <finalPrice> ₪ + מע"מ" right-aligned in cost box
-      x: 1180, y: 1020, fontSize: 22, align: 'right' as const,
-      mask: { x: 770, y: 997, w: 420, h: 32 },
+      x: 1180, y: 1045, fontSize: 22, align: 'right' as const,
+      mask: { x: 770, y: 1023, w: 420, h: 32 },
       template: 'מחיר לאחר הנחה: {value} ₪ + מע״מ'
     }
   },
@@ -101,22 +101,22 @@ export const AGENT_PACKAGES = {
 
 export const AGENTS_COORDINATES = {
   page1: {
-    תאריך: { x: 60, y: 215, fontSize: 22, align: 'left' as const, mask: { x: 30, y: 195, w: 220, h: 30 } },
-    לכבוד: { x: 1180, y: 320, fontSize: 28, align: 'right' as const, mask: { x: 700, y: 295, w: 490, h: 38 } },
+    תאריך: { x: 60, y: 250, fontSize: 22, align: 'left' as const, mask: { x: 30, y: 225, w: 220, h: 35 } },
+    לכבוד: { x: 1180, y: 360, fontSize: 28, align: 'right' as const, mask: { x: 700, y: 330, w: 490, h: 45 } },
     title: {
       // "הטמעת אייגנט באתר - <websiteName>"
-      x: 620, y: 415, fontSize: 28, align: 'center' as const,
-      mask: { x: 280, y: 385, w: 680, h: 45 },
+      x: 620, y: 450, fontSize: 28, align: 'center' as const,
+      mask: { x: 250, y: 420, w: 740, h: 50 },
       prefix: 'הטמעת אייגנט באתר - '
     },
     // Package recommendation checkboxes. Coordinates point to the small
     // square next to each package title. We white-out all four first,
     // then fill only the recommended one with the brand orange.
     packages: {
-      basic:    { x: 1130, y: 1090, w: 22, h: 22 },
-      pro:      { x: 705,  y: 1090, w: 22, h: 22 },
-      advanced: { x: 1130, y: 1295, w: 22, h: 22 },
-      pro_max:  { x: 705,  y: 1295, w: 22, h: 22 }
+      basic:    { x: 985, y: 1090, w: 22, h: 22 },
+      pro:      { x: 555, y: 1090, w: 22, h: 22 },
+      advanced: { x: 985, y: 1295, w: 22, h: 22 },
+      pro_max:  { x: 555, y: 1295, w: 22, h: 22 }
     }
   },
   page2: {
