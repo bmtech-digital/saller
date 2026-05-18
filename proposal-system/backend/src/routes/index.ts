@@ -3,6 +3,7 @@ import authRoutes from './auth.routes.js';
 import customersRoutes from './customers.routes.js';
 import proposalsRoutes from './proposals.routes.js';
 import campaignsRoutes from './campaigns.routes.js';
+import influencersRoutes from './influencers.routes.js';
 import clientRoutes from './client.routes.js';
 import logsRoutes from './logs.routes.js';
 
@@ -13,6 +14,7 @@ router.use('/auth', authRoutes);
 router.use('/customers', customersRoutes);
 router.use('/proposals', proposalsRoutes);
 router.use('/campaigns', campaignsRoutes);
+router.use('/influencers', influencersRoutes);
 
 // Public client routes (for signing)
 router.use('/client', clientRoutes);

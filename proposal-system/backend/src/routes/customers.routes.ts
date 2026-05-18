@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { customersController } from '../controllers/customers.controller.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { customerScopedInfluencersRouter } from './influencers.routes.js';
 
 const router = Router();
 
@@ -13,5 +14,8 @@ router.get('/:id', (req, res) => customersController.getOne(req, res));
 router.post('/', (req, res) => customersController.create(req, res));
 router.put('/:id', (req, res) => customersController.update(req, res));
 router.delete('/:id', (req, res) => customersController.delete(req, res));
+
+// Influencers nested under a customer
+router.use('/:customerId/influencers', customerScopedInfluencersRouter);
 
 export default router;
